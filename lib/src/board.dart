@@ -92,7 +92,10 @@ class _BoardState extends State<_Board> {
   }
   //endregion
 
-  Iterable<Widget> _buildCells(int width, int height) sync* {
+  /// TODO: необходимо перестраивать клетки
+  /// возвращая не исходные координаты виджетов
+  /// , а результирующие координаты клетки [colOffset], [rowOffset]
+  Iterable<Widget> _buildTiles(int width, int height) sync* {
     final builder = widget.builder;
     final cellSize = widget.size;
     for (var x = 0; x < width; x++) {
@@ -133,7 +136,7 @@ class _BoardState extends State<_Board> {
                         cellSize,
                         _controller,
                       ),
-                      children: _buildCells(
+                      children: _buildTiles(
                         width,
                         height,
                       ).toList(growable: false),
@@ -209,40 +212,27 @@ class _BoardFlowDelegate extends FlowDelegate {
     for (var x = 0; x < width; x++) {
       // Перемещение столбца
       if (colOffset.isNegative) {
-        xBoardOffset = ((width + colOffset - x) / width).ceil() - 1;
-        if (xBoardOffset > 0) {
-          xBoardOffset = 0;
-        }
+        xBoardOffset =
+            math.min(((width + colOffset - x) / width).ceil() - 1, 0);
       } else {
-        xBoardOffset = ((colOffset - x) / width).ceil();
-        if (xBoardOffset.isNegative) {
-          xBoardOffset = 0;
-        }
+        xBoardOffset = math.max(((colOffset - x) / width).ceil(), 0);
       }
       for (var y = 0; y < height; y++) {
         // Перемещение строки
         if (rowOffset.isNegative) {
-          yBoardOffset = ((height + rowOffset - y) / height).ceil() - 1;
-          if (yBoardOffset > 0) {
-            yBoardOffset = 0;
-          }
+          yBoardOffset =
+              math.min(((height + rowOffset - y) / height).ceil() - 1, 0);
         } else {
-          yBoardOffset = ((rowOffset - y) / height).ceil();
-          if (yBoardOffset.isNegative) {
-            yBoardOffset = 0;
-          }
+          yBoardOffset = math.max(((rowOffset - y) / height).ceil(), 0);
         }
 
+        // Отрисуем клетку #i
         context.paintChild(
           i++,
           opacity: 1,
           transform: Matrix4.translationValues(
-            x * size.width +
-                listenable.value.dx +
-                xBoardOffset * width * size.width,
-            y * size.height +
-                listenable.value.dy +
-                yBoardOffset * height * size.height,
+            listenable.value.dx + (x + xBoardOffset * width) * size.width,
+            listenable.value.dy + (y + yBoardOffset * height) * size.height,
             0,
           ),
         );
@@ -258,6 +248,7 @@ class _BoardFlowDelegate extends FlowDelegate {
       size != oldDelegate.size;
 }
 
+/// Контроллер отслеживающий отступ камеры для доски
 class _ThrottledOffsetController extends _ThrottledController<Offset> {
   _ThrottledOffsetController({
     required Offset initialValue,
@@ -270,6 +261,7 @@ class _ThrottledOffsetController extends _ThrottledController<Offset> {
   void translate(double x, double y) => update(value.translate(x, y));
 }
 
+/// Value Notifier с троттлингом под заданое количество FPS
 abstract class _ThrottledController<T extends Object>
     with ChangeNotifier
     implements ValueListenable<T> {
