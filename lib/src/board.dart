@@ -88,9 +88,7 @@ class _BoardState extends State<_Board> {
             onPanDown: (details) {},
             onPanEnd: (details) {},
             onPanUpdate: (details) {
-              setState(() {
-                _listenable.value = _listenable.value.translate(details.delta.dx, details.delta.dy);
-              });
+              _listenable.value = _listenable.value.translate(details.delta.dx, details.delta.dy);
             },
             child: ColoredBox(
               color: const Color(0xFF7F7F7F),
@@ -119,7 +117,10 @@ class _BoardState extends State<_Board> {
                 height: 100,
                 width: MediaQuery.of(context).size.width,
                 child: Center(
-                  child: Text('Camera pos: (${_listenable.value.dx.round()};${_listenable.value.dy.round()})'),
+                  child: ValueListenableBuilder<Offset>(
+                    builder: (context, value, child) => Text('Camera pos: (${value.dx.round()};${value.dy.round()})'),
+                    valueListenable: _listenable,
+                  ),
                 ),
               ))
         ],
