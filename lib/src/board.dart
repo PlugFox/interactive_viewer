@@ -57,7 +57,6 @@ class _Board extends StatefulWidget {
   State<_Board> createState() => _BoardState();
 }
 
-// ignore: prefer_mixin
 class _BoardState extends State<_Board> {
   late _ThrottledOffsetController _controller;
 
