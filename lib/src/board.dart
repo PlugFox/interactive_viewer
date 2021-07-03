@@ -7,13 +7,11 @@ typedef CellBuilder = Widget Function(int x, int y);
 @immutable
 class Board extends StatelessWidget {
   final Size widgetSize;
-  final Size? boardSize;
   final CellBuilder builder;
 
   const Board({
     required this.builder,
     required this.widgetSize,
-    this.boardSize,
     Key? key,
   }) : super(key: key);
 
