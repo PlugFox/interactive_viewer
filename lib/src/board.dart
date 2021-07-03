@@ -1,5 +1,7 @@
 // ignore_for_file: prefer_mixin
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -108,43 +110,45 @@ class _BoardState extends State<_Board> {
   Widget build(BuildContext context) => Stack(
         alignment: Alignment.center,
         children: <Widget>[
-          Positioned(
-            child: GestureDetector(
-              onPanCancel: () => _controller.notifyListeners(),
-              onPanEnd: (details) => _controller.notifyListeners(),
-              onPanUpdate: (details) =>
-                  _controller.translate(details.delta.dx, details.delta.dy),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Расчитываю сколько клеточек может
-                  // поместиться на экране по каждой оси
-                  // с небольшим запасом
-                  final boardSize = constraints.biggest;
-                  final cellSize = widget.size;
-                  final width = (boardSize.width / cellSize.width).ceil() + 1;
-                  final height =
-                      (boardSize.height / cellSize.height).ceil() + 1;
-                  return Flow(
-                    delegate: _BoardFlowDelegate(
-                      width,
-                      height,
-                      cellSize,
-                      _controller,
-                    ),
-                    children: _buildCells(
-                      width,
-                      height,
-                    ).toList(growable: false),
-                  );
-                },
+          Positioned.fill(
+            child: Center(
+              child: GestureDetector(
+                onPanCancel: () => _controller.notifyListeners(),
+                onPanEnd: (details) => _controller.notifyListeners(),
+                onPanUpdate: (details) =>
+                    _controller.translate(details.delta.dx, details.delta.dy),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Расчитываю сколько клеточек может
+                    // поместиться на экране по каждой оси
+                    // с небольшим запасом
+                    final boardSize = constraints.biggest;
+                    final cellSize = widget.size;
+                    final width = (boardSize.width / cellSize.width).ceil() + 1;
+                    final height =
+                        (boardSize.height / cellSize.height).ceil() + 1;
+                    return Flow(
+                      delegate: _BoardFlowDelegate(
+                        width,
+                        height,
+                        cellSize,
+                        _controller,
+                      ),
+                      children: _buildCells(
+                        width,
+                        height,
+                      ).toList(growable: false),
+                    );
+                  },
+                ),
               ),
             ),
           ),
           if (widget.debug)
             Positioned(
-              width: 200,
+              width: math.min(200, MediaQuery.of(context).size.width),
               bottom: 5,
-              height: 25,
+              height: 20,
               child: ColoredBox(
                 color: const Color(0xFF000000),
                 child: Center(
@@ -153,9 +157,12 @@ class _BoardState extends State<_Board> {
                       '${value.dx.truncate()} x ${value.dy.truncate()}',
                       style: const TextStyle(
                         height: 1,
+                        fontSize: 12,
                         color: Color(0xFFFFFFFF),
                       ),
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
                     ),
                     valueListenable: _controller,
                   ),

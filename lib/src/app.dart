@@ -6,13 +6,15 @@ class App extends StatelessWidget {
   const App({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context) => const MaterialApp(
         title: 'Board',
         home: Home(),
       );
 }
 
 class Home extends StatelessWidget {
+  const Home({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) => Scaffold(
         body: SafeArea(
