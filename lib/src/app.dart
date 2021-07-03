@@ -19,7 +19,8 @@ class Home extends StatelessWidget {
           width: MediaQuery.of(context).size.width,
           child: SafeArea(
             child: Board(
-              widgetSize: const Size(120, 120),
+              tileSize: const Size(120, 120),
+              fps: 60,
               builder: (x, y) => Container(
                 height: 120,
                 width: 120,

@@ -1,35 +1,46 @@
+// ignore_for_file: prefer_mixin
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
-typedef CellBuilder = Widget Function(int x, int y);
+typedef TileBuilder = Widget Function(int x, int y);
 
 @immutable
 class Board extends StatelessWidget {
-  final Size widgetSize;
-  final CellBuilder builder;
+  /// Размер одного тайла
+  final Size tileSize;
+
+  /// Коллбэк вызывается для построения каждого попавшей в поле зрения
+  final TileBuilder builder;
+
+  /// Ограничение на FPS, по умолчанию - без ограничения
+  final num fps;
 
   const Board({
     required this.builder,
-    required this.widgetSize,
+    required this.tileSize,
+    this.fps = double.infinity,
     Key? key,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) => _Board(
         builder: builder,
-        size: widgetSize,
+        size: tileSize,
+        fps: fps,
       );
 }
 
 @immutable
 class _Board extends StatefulWidget {
   final Size size;
-  final CellBuilder builder;
+  final TileBuilder builder;
+  final num fps;
 
   const _Board({
     required this.builder,
     required this.size,
+    required this.fps,
     Key? key,
   }) : super(key: key);
 
@@ -39,24 +50,36 @@ class _Board extends StatefulWidget {
 
 // ignore: prefer_mixin
 class _BoardState extends State<_Board> {
-  final ValueNotifier<Offset> _listenable = ValueNotifier<Offset>(const Offset(0, 0));
+  late _ThrottledOffsetController _controller;
 
   //region Lifecycle
   @override
   void initState() {
     super.initState();
-    // Первичная инициализация виджета
+    _controller = _ThrottledOffsetController(
+      initialValue: const Offset(0, 0),
+      fps: widget.fps,
+    );
   }
 
   @override
-  void didUpdateWidget(_Board oldWidget) {
+  void didUpdateWidget(covariant _Board oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Конфигурация виджета изменилась
+    if (oldWidget.fps != widget.fps) {
+      final oldController = _controller;
+      WidgetsBinding.instance?.addPostFrameCallback(
+        (_) => oldController.dispose(),
+      );
+      _controller = _ThrottledOffsetController(
+        initialValue: _controller.value,
+        fps: widget.fps,
+      );
+    }
   }
 
   @override
   void dispose() {
-    // Перманетное удаление стейта из дерева
+    _controller.dispose();
     super.dispose();
   }
   //endregion
@@ -76,53 +99,69 @@ class _BoardState extends State<_Board> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-      height: MediaQuery.of(context).size.height,
-      width: MediaQuery.of(context).size.width,
-      child: Stack(
-        children: [
-          GestureDetector(
-            onPanStart: (DragStartDetails details) {},
-            onPanCancel: () {},
-            onPanDown: (details) {},
-            onPanEnd: (details) {},
-            onPanUpdate: (details) {
-              _listenable.value = _listenable.value.translate(details.delta.dx, details.delta.dy);
-            },
-            child: ColoredBox(
-              color: const Color(0xFF7F7F7F),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Расчитываю сколько клеточек может
-                  // поместиться на экране по каждой оси
-                  // с небольшим запасом
-                  final boardSize = constraints.biggest;
-                  final cellSize = widget.size;
-                  final width = (boardSize.width / cellSize.width).ceil() + 1;
-                  final height = (boardSize.height / cellSize.height).ceil() + 1;
-                  return Flow(
-                    delegate: _BoardFlowDelegate(width, height, cellSize, _listenable, boardSize),
-                    children: _buildCells(width, height).toList(growable: false),
-                  );
-                },
+        height: MediaQuery.of(context).size.height,
+        width: MediaQuery.of(context).size.width,
+        child: Stack(
+          children: <Widget>[
+            GestureDetector(
+              onPanCancel: () => _controller.notifyListeners(),
+              onPanEnd: (details) => _controller.notifyListeners(),
+              onPanUpdate: (details) =>
+                  _controller.translate(details.delta.dx, details.delta.dy),
+              child: ColoredBox(
+                color: const Color(0xFF7F7F7F),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Расчитываю сколько клеточек может
+                    // поместиться на экране по каждой оси
+                    // с небольшим запасом
+                    final boardSize = constraints.biggest;
+                    final cellSize = widget.size;
+                    final width = (boardSize.width / cellSize.width).ceil() + 1;
+                    final height =
+                        (boardSize.height / cellSize.height).ceil() + 1;
+                    return Flow(
+                      delegate: _BoardFlowDelegate(
+                        width,
+                        height,
+                        cellSize,
+                        _controller,
+                        boardSize,
+                      ),
+                      children: _buildCells(
+                        width,
+                        height,
+                      ).toList(growable: false),
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-          Positioned(
-              left: 0,
-              top: MediaQuery.of(context).size.height - 100,
+            Positioned(
+              left: 5,
+              right: 5,
+              height: 25,
+              bottom: 5,
               child: Container(
-                decoration: BoxDecoration(color: Colors.white, border: Border.all(width: 2)),
-                height: 100,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFFFF),
+                  border: Border.all(width: 2),
+                ),
+                height: 25,
                 width: MediaQuery.of(context).size.width,
                 child: Center(
                   child: ValueListenableBuilder<Offset>(
-                    builder: (context, value, child) => Text('Camera pos: (${value.dx.round()};${value.dy.round()})'),
-                    valueListenable: _listenable,
+                    builder: (context, value, child) => Text(
+                      'Camera pos: (${value.dx.round()};${value.dy.round()})',
+                    ),
+                    valueListenable: _controller,
                   ),
                 ),
-              ))
-        ],
-      ));
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _BoardFlowDelegate extends FlowDelegate {
@@ -158,8 +197,6 @@ class _BoardFlowDelegate extends FlowDelegate {
         xBoardOffset = ((width + colOffset - x) / width).ceil() - 1;
         if (xBoardOffset > 0) {
           xBoardOffset = 0;
-        } else {
-          //print('x: $x xBoardOffset: $xBoardOffset');
         }
       } else {
         xBoardOffset = ((colOffset - x) / width).ceil();
@@ -173,7 +210,7 @@ class _BoardFlowDelegate extends FlowDelegate {
           yBoardOffset = ((height + rowOffset - y) / height).ceil() - 1;
           if (yBoardOffset > 0) {
             yBoardOffset = 0;
-          } else {}
+          }
         } else {
           yBoardOffset = ((rowOffset - y) / height).ceil();
           if (yBoardOffset.isNegative) {
@@ -185,8 +222,12 @@ class _BoardFlowDelegate extends FlowDelegate {
           i++,
           opacity: 1,
           transform: Matrix4.translationValues(
-            x * size.width + listenable.value.dx + xBoardOffset * width * size.width,
-            y * size.height + listenable.value.dy + yBoardOffset * height * size.height,
+            x * size.width +
+                listenable.value.dx +
+                xBoardOffset * width * size.width,
+            y * size.height +
+                listenable.value.dy +
+                yBoardOffset * height * size.height,
             0,
           ),
         );
@@ -200,4 +241,48 @@ class _BoardFlowDelegate extends FlowDelegate {
       width != oldDelegate.width ||
       height != oldDelegate.height ||
       size != oldDelegate.size;
+}
+
+class _ThrottledOffsetController extends _ThrottledController<Offset> {
+  _ThrottledOffsetController({
+    required Offset initialValue,
+    required num fps,
+  }) : super(
+          initialValue: initialValue,
+          fps: fps,
+        );
+
+  void translate(double x, double y) => update(value.translate(x, y));
+}
+
+abstract class _ThrottledController<T extends Object>
+    with ChangeNotifier
+    implements ValueListenable<T> {
+  final int _delay;
+  final Stopwatch _stopwatch;
+
+  _ThrottledController({
+    required T initialValue,
+    required num fps,
+  })  : _value = initialValue,
+        _delay = fps == double.infinity ? 0 : 1000 ~/ fps,
+        _stopwatch = Stopwatch()..start();
+
+  /// Обновляет текущее значение
+  /// Если не прошло необходимое число мс - не уведомляет об изменении
+  void update(T value) {
+    _value = value;
+    if (_stopwatch.elapsedMilliseconds < _delay) return;
+    notifyListeners();
+  }
+
+  @override
+  void notifyListeners() {
+    _stopwatch.reset();
+    super.notifyListeners();
+  }
+
+  @override
+  T get value => _value;
+  T _value;
 }
