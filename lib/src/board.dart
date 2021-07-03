@@ -16,10 +16,14 @@ class Board extends StatelessWidget {
   /// Ограничение на FPS, по умолчанию - без ограничения
   final num fps;
 
+  /// Отображать табличку с текущими координатами
+  final bool debug;
+
   const Board({
     required this.builder,
     required this.tileSize,
     this.fps = double.infinity,
+    this.debug = false,
     Key? key,
   }) : super(key: key);
 
@@ -28,6 +32,7 @@ class Board extends StatelessWidget {
         builder: builder,
         size: tileSize,
         fps: fps,
+        debug: debug,
       );
 }
 
@@ -36,11 +41,13 @@ class _Board extends StatefulWidget {
   final Size size;
   final TileBuilder builder;
   final num fps;
+  final bool debug;
 
   const _Board({
     required this.builder,
     required this.size,
     required this.fps,
+    required this.debug,
     Key? key,
   }) : super(key: key);
 
@@ -98,89 +105,91 @@ class _BoardState extends State<_Board> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: MediaQuery.of(context).size.height,
-        width: MediaQuery.of(context).size.width,
-        child: Stack(
-          children: <Widget>[
-            GestureDetector(
+  Widget build(BuildContext context) => Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          Positioned(
+            child: GestureDetector(
               onPanCancel: () => _controller.notifyListeners(),
               onPanEnd: (details) => _controller.notifyListeners(),
               onPanUpdate: (details) =>
                   _controller.translate(details.delta.dx, details.delta.dy),
-              child: ColoredBox(
-                color: const Color(0xFF7F7F7F),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Расчитываю сколько клеточек может
-                    // поместиться на экране по каждой оси
-                    // с небольшим запасом
-                    final boardSize = constraints.biggest;
-                    final cellSize = widget.size;
-                    final width = (boardSize.width / cellSize.width).ceil() + 1;
-                    final height =
-                        (boardSize.height / cellSize.height).ceil() + 1;
-                    return Flow(
-                      delegate: _BoardFlowDelegate(
-                        width,
-                        height,
-                        cellSize,
-                        _controller,
-                        boardSize,
-                      ),
-                      children: _buildCells(
-                        width,
-                        height,
-                      ).toList(growable: false),
-                    );
-                  },
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Расчитываю сколько клеточек может
+                  // поместиться на экране по каждой оси
+                  // с небольшим запасом
+                  final boardSize = constraints.biggest;
+                  final cellSize = widget.size;
+                  final width = (boardSize.width / cellSize.width).ceil() + 1;
+                  final height =
+                      (boardSize.height / cellSize.height).ceil() + 1;
+                  return Flow(
+                    delegate: _BoardFlowDelegate(
+                      width,
+                      height,
+                      cellSize,
+                      _controller,
+                    ),
+                    children: _buildCells(
+                      width,
+                      height,
+                    ).toList(growable: false),
+                  );
+                },
               ),
             ),
+          ),
+          if (widget.debug)
             Positioned(
-              left: 5,
-              right: 5,
-              height: 25,
+              width: 200,
               bottom: 5,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF),
-                  border: Border.all(width: 2),
-                ),
-                height: 25,
-                width: MediaQuery.of(context).size.width,
+              height: 25,
+              child: ColoredBox(
+                color: const Color(0xFF000000),
                 child: Center(
                   child: ValueListenableBuilder<Offset>(
                     builder: (context, value, child) => Text(
-                      'Camera pos: (${value.dx.round()};${value.dy.round()})',
+                      '${value.dx.truncate()} x ${value.dy.truncate()}',
+                      style: const TextStyle(
+                        height: 1,
+                        color: Color(0xFFFFFFFF),
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                     valueListenable: _controller,
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       );
 }
 
 class _BoardFlowDelegate extends FlowDelegate {
-  final ValueListenable<Offset> listenable;
+  /// Количество клеточек по ширине
   final int width;
+
+  /// Количество клеточек по высоте
   final int height;
-  final Size boardSize;
+
+  /// Размер клеточки в dp
   final Size size;
+
+  /// Контроллер со значением координат поля
+  final ValueListenable<Offset> listenable;
 
   _BoardFlowDelegate(
     this.width,
     this.height,
     this.size,
     this.listenable,
-    this.boardSize,
   ) : super(repaint: listenable);
 
   @override
   void paintChildren(FlowPaintingContext context) {
+    //final boardSize = context.size;
+
     // Количество целых столбцов и строк на которые съехала доска
     // по горизонтали и вертикали
     final colOffset = -(listenable.value.dx / size.width).ceil();
