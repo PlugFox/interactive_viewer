@@ -7,16 +7,23 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'Board',
-        home: Scaffold(
-          body: SafeArea(
+        home: Home(),
+      );
+}
+
+class Home extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: SizedBox(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          child: SafeArea(
             child: Board(
-              builder: (x, y) => DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    width: 1,
-                    color: const Color(0xFF000000),
-                  ),
-                ),
+              widgetSize: const Size(120, 120),
+              builder: (x, y) => Container(
+                height: 120,
+                width: 120,
+                decoration: BoxDecoration(border: Border.all()),
                 child: Center(
                   child: Text('$x x $y'),
                 ),

@@ -1,23 +1,24 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
 typedef CellBuilder = Widget Function(int x, int y);
 
 @immutable
 class Board extends StatelessWidget {
-  final Size? size;
+  final Size widgetSize;
   final CellBuilder builder;
 
   const Board({
     required this.builder,
-    this.size,
+    required this.widgetSize,
     Key? key,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) => _Board(
         builder: builder,
-        size: size ?? const Size.square(100),
+        size: widgetSize,
       );
 }
 
@@ -38,8 +39,7 @@ class _Board extends StatefulWidget {
 
 // ignore: prefer_mixin
 class _BoardState extends State<_Board> {
-  final ValueNotifier<Offset> _listenable =
-      ValueNotifier<Offset>(const Offset(0, 0));
+  final ValueNotifier<Offset> _listenable = ValueNotifier<Offset>(const Offset(0, 0));
 
   //region Lifecycle
   @override
@@ -75,45 +75,61 @@ class _BoardState extends State<_Board> {
   }
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onPanStart: (DragStartDetails details) {},
-        onPanCancel: () {},
-        onPanDown: (details) {},
-        onPanEnd: (details) {},
-        onPanUpdate: (details) {
-          _listenable.value =
-              _listenable.value.translate(details.delta.dx, details.delta.dy);
-        },
-        child: ColoredBox(
-          color: const Color(0xFF7F7F7F),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Расчитываю сколько клеточек может
-              // поместиться на экране по каждой оси
-              // с небольшим запасом
-              final boardSize = constraints.biggest;
-              final cellSize = widget.size;
-              final width = (boardSize.width / cellSize.width).ceil() + 1;
-              final height = (boardSize.height / cellSize.height).ceil() + 1;
-              return Flow(
-                delegate: _BoardFlowDelegate(
-                  width,
-                  height,
-                  cellSize,
-                  _listenable,
-                ),
-                children: _buildCells(width, height).toList(growable: false),
-              );
+  Widget build(BuildContext context) => SizedBox(
+      height: MediaQuery.of(context).size.height,
+      width: MediaQuery.of(context).size.width,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onPanStart: (DragStartDetails details) {},
+            onPanCancel: () {},
+            onPanDown: (details) {},
+            onPanEnd: (details) {},
+            onPanUpdate: (details) {
+              _listenable.value = _listenable.value.translate(details.delta.dx, details.delta.dy);
             },
+            child: ColoredBox(
+              color: const Color(0xFF7F7F7F),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Расчитываю сколько клеточек может
+                  // поместиться на экране по каждой оси
+                  // с небольшим запасом
+                  final boardSize = constraints.biggest;
+                  final cellSize = widget.size;
+                  final width = (boardSize.width / cellSize.width).ceil() + 1;
+                  final height = (boardSize.height / cellSize.height).ceil() + 1;
+                  return Flow(
+                    delegate: _BoardFlowDelegate(width, height, cellSize, _listenable, boardSize),
+                    children: _buildCells(width, height).toList(growable: false),
+                  );
+                },
+              ),
+            ),
           ),
-        ),
-      );
+          Positioned(
+              left: 0,
+              top: MediaQuery.of(context).size.height - 100,
+              child: Container(
+                decoration: BoxDecoration(color: Colors.white, border: Border.all(width: 2)),
+                height: 100,
+                width: MediaQuery.of(context).size.width,
+                child: Center(
+                  child: ValueListenableBuilder<Offset>(
+                    builder: (context, value, child) => Text('Camera pos: (${value.dx.round()};${value.dy.round()})'),
+                    valueListenable: _listenable,
+                  ),
+                ),
+              ))
+        ],
+      ));
 }
 
 class _BoardFlowDelegate extends FlowDelegate {
   final ValueListenable<Offset> listenable;
   final int width;
   final int height;
+  final Size boardSize;
   final Size size;
 
   _BoardFlowDelegate(
@@ -121,6 +137,7 @@ class _BoardFlowDelegate extends FlowDelegate {
     this.height,
     this.size,
     this.listenable,
+    this.boardSize,
   ) : super(repaint: listenable);
 
   @override
@@ -137,29 +154,39 @@ class _BoardFlowDelegate extends FlowDelegate {
     var i = 0;
     for (var x = 0; x < width; x++) {
       // Перемещение столбца
-      if (!colOffset.isNegative) {
-        // Столбцы уходят влево - перемещаем первые столбцы справа от остальных
-        /// TODO: вывести формулу на сколько досок нужно отступить клетке влево или вправо
-        //if (x < colOffset.abs()) {
-        //  xBoardOffset = (colOffset ~/ width + 1) * width;
-        //} else {
-        //  xBoardOffset = 0;
-        //}
+      if (colOffset.isNegative) {
+        xBoardOffset = ((width + colOffset - x) / width).ceil() - 1;
+        if (xBoardOffset > 0) {
+          xBoardOffset = 0;
+        } else {
+          //print('x: $x xBoardOffset: $xBoardOffset');
+        }
       } else {
-        // // Столбцы уходят вправо - перемещаем правые столбцы слева от остальных
-        // if (x > colOffset.abs()) {
-        //   xOffset = -width;
-        // } else {
-        //   xOffset = 0;
-        // }
+        xBoardOffset = ((colOffset - x) / width).ceil();
+        if (xBoardOffset.isNegative) {
+          xBoardOffset = 0;
+        }
       }
       for (var y = 0; y < height; y++) {
+        // Перемещение строки
+        if (rowOffset.isNegative) {
+          yBoardOffset = ((height + rowOffset - y) / height).ceil() - 1;
+          if (yBoardOffset > 0) {
+            yBoardOffset = 0;
+          } else {}
+        } else {
+          yBoardOffset = ((rowOffset - y) / height).ceil();
+          if (yBoardOffset.isNegative) {
+            yBoardOffset = 0;
+          }
+        }
+
         context.paintChild(
           i++,
           opacity: 1,
           transform: Matrix4.translationValues(
-            (x + xBoardOffset) * size.width + listenable.value.dx,
-            (y + yBoardOffset) * size.height + listenable.value.dy,
+            x * size.width + listenable.value.dx + xBoardOffset * width * size.width,
+            y * size.height + listenable.value.dy + yBoardOffset * height * size.height,
             0,
           ),
         );
