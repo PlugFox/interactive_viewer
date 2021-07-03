@@ -153,24 +153,22 @@ class _BoardFlowDelegate extends FlowDelegate {
 
     var i = 0;
     for (var x = 0; x < width; x++) {
-      for (var y = 0; y < height; y++) {
-        // Перемещение столбца
-        if (colOffset.isNegative) {
-          xBoardOffset = ((width + colOffset - x) / width).ceil() - 1;
-          if (xBoardOffset > 0) {
-            xBoardOffset = 0;
-          } else {
-            //print('x: $x xBoardOffset: $xBoardOffset');
-          }
+      // Перемещение столбца
+      if (colOffset.isNegative) {
+        xBoardOffset = ((width + colOffset - x) / width).ceil() - 1;
+        if (xBoardOffset > 0) {
+          xBoardOffset = 0;
         } else {
-          xBoardOffset = ((colOffset - x) / width).ceil();
-          if (xBoardOffset.isNegative) {
-            xBoardOffset = 0;
-          }
+          //print('x: $x xBoardOffset: $xBoardOffset');
         }
-
+      } else {
+        xBoardOffset = ((colOffset - x) / width).ceil();
+        if (xBoardOffset.isNegative) {
+          xBoardOffset = 0;
+        }
+      }
+      for (var y = 0; y < height; y++) {
         // Перемещение строки
-
         if (rowOffset.isNegative) {
           yBoardOffset = ((height + rowOffset - y) / height).ceil() - 1;
           if (yBoardOffset > 0) {
