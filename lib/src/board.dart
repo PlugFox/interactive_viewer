@@ -309,6 +309,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
             builder: (context, _) => StreamBuilder<int>(
               stream: _rebuildControllerRow.stream.where((v) => v == y),
               builder: (context, _) => builder(x, y),
+
+              /// TODO: вызывать тайл не с координатами x и y клетки в Flow, а реальными координатами клетки в плоскости доски
+              /// TODO: обернуть тайл в специальный виджет, отслеживая необходимость перестроения
             ),
           ),
         );
