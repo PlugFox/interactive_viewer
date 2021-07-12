@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_mixin
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -92,22 +93,6 @@ class _BoardState extends State<_Board> {
   }
   //endregion
 
-  /// TODO: необходимо перестраивать клетки
-  /// возвращая не исходные координаты виджетов
-  /// , а результирующие координаты клетки [colOffset], [rowOffset]
-  Iterable<Widget> _buildTiles(int width, int height) sync* {
-    final builder = widget.builder;
-    final cellSize = widget.size;
-    for (var x = 0; x < width; x++) {
-      for (var y = 0; y < height; y++) {
-        yield SizedBox.fromSize(
-          size: cellSize,
-          child: builder(x, y),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) => Stack(
         alignment: Alignment.center,
@@ -120,28 +105,11 @@ class _BoardState extends State<_Board> {
                 onPanUpdate: (details) =>
                     _controller.translate(details.delta.dx, details.delta.dy),
                 child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Расчитываю сколько клеточек может
-                    // поместиться на экране по каждой оси
-                    // с небольшим запасом
-                    final boardSize = constraints.biggest;
-                    final cellSize = widget.size;
-                    final width = (boardSize.width / cellSize.width).ceil() + 1;
-                    final height =
-                        (boardSize.height / cellSize.height).ceil() + 1;
-                    return Flow(
-                      delegate: _BoardFlowDelegate(
-                        width,
-                        height,
-                        cellSize,
-                        _controller,
-                      ),
-                      children: _buildTiles(
-                        width,
-                        height,
-                      ).toList(growable: false),
-                    );
-                  },
+                  builder: (context, constraints) => _BoardLayout(
+                    offsetController: _controller,
+                    boardSize: constraints.biggest,
+                    cellSize: widget.size,
+                  ),
                 ),
               ),
             ),
@@ -173,6 +141,180 @@ class _BoardState extends State<_Board> {
             ),
         ],
       );
+}
+
+/// Лэйаут доски
+@immutable
+class _BoardLayout extends StatefulWidget {
+  /// Контроллер положения камеры
+  final _ThrottledOffsetController offsetController;
+
+  /// Размер клеточки
+  final Size cellSize;
+
+  /// Размер доски
+  final Size boardSize;
+
+  const _BoardLayout({
+    required this.offsetController,
+    required this.cellSize,
+    required this.boardSize,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  State<_BoardLayout> createState() => _BoardLayoutState();
+}
+
+class _BoardLayoutState extends State<_BoardLayout> {
+  /// Стрим контроллер уведомляющий об изменении по X, от 0 до width
+  /// (значение в нем указывает о номере изменившейся колонки)
+  final StreamController<int> _rebuildControllerCol =
+      StreamController<int>.broadcast();
+
+  /// Предидущий отступ колонок
+  int oldColOffset = 0;
+
+  /// Количество колонок умещающихся на экране
+  int width = 0;
+
+  /// Стрим контроллер уведомляющий об изменении по Y, от 0 до height
+  /// (значение в нем указывает о номере изменившейся строки)
+  final StreamController<int> _rebuildControllerRow =
+      StreamController<int>.broadcast();
+
+  /// Предидущий отступ строк
+  int oldRowOffset = 0;
+
+  /// Количество строк умещающихся на экране
+  int height = 0;
+
+  /// Вызывается при изменении положения камеры
+  /// Вычисляет столбцы нуждающиеся в перестроении
+  /// Для перестроения столбца вызывайте [_rebuildControllerCol.add]
+  /// с номером столбца (от 0 до width)
+  void _rebuildX() {
+    final newColOffset =
+        -(widget.offsetController.value.dx / widget.cellSize.width).ceil();
+    if (newColOffset != oldColOffset) {
+      print('!!!!!!! COL: $oldColOffset => $newColOffset');
+      _rebuildControllerCol.add(0);
+
+      /// TODO: обновлять определенную столбец
+    }
+    /*
+    for (var x = 0; x < width; x++) {
+      // Перемещение столбца
+      if (newColOffset.isNegative) {
+        final xBoardOffset =
+            math.min(((width + newColOffset - x) / width).ceil() - 1, 0);
+      } else {
+        final xBoardOffset = math.max(((newColOffset - x) / width).ceil(), 0);
+      }
+    }
+    */
+    oldColOffset = newColOffset;
+  }
+
+  /// Вызывается при изменении положения камеры
+  /// Вычисляет столбцы нуждающиеся в перестроении
+  /// Для перестроения столбца вызывайте [_rebuildControllerRow.add]
+  /// с номером строки (от 0 до height)
+  void _rebuildY() {
+    final newRowOffset =
+        -(widget.offsetController.value.dy / widget.cellSize.height).ceil();
+    if (newRowOffset != oldRowOffset) {
+      print('!!!!!!! ROW: $oldRowOffset => $newRowOffset');
+      _rebuildControllerRow.add(0);
+
+      /// TODO: обновлять определенную строку
+    }
+    /*
+    for (var y = 0; y < height; y++) {
+      // Перемещение строки
+      if (newRowOffset.isNegative) {
+        final yBoardOffset =
+            math.min(((height + newRowOffset - y) / height).ceil() - 1, 0);
+      } else {
+        final yBoardOffset = math.max(((newRowOffset - y) / height).ceil(), 0);
+      }
+    }
+    */
+    oldRowOffset = newRowOffset;
+  }
+
+  //region Lifecycle
+  @override
+  void initState() {
+    super.initState();
+    _evalSizeTileCount();
+    widget.offsetController..addListener(_rebuildX)..addListener(_rebuildY);
+  }
+
+  @override
+  void didUpdateWidget(_BoardLayout oldWidget) {
+    _evalSizeTileCount();
+    super.didUpdateWidget(oldWidget);
+  }
+
+  // Расчитываю сколько клеточек может
+  // поместиться на экране по каждой оси
+  // с небольшим запасом
+  void _evalSizeTileCount() {
+    width = (widget.boardSize.width / widget.cellSize.width).ceil() + 1;
+    height = (widget.boardSize.height / widget.cellSize.height).ceil() + 1;
+  }
+
+  @override
+  void dispose() {
+    _rebuildControllerCol.close();
+    _rebuildControllerRow.close();
+    widget.offsetController
+      ..removeListener(_rebuildX)
+      ..removeListener(_rebuildY);
+    super.dispose();
+  }
+  //endregion
+
+  @override
+  Widget build(BuildContext context) => Flow(
+        delegate: _BoardFlowDelegate(
+          width,
+          height,
+          widget.cellSize,
+          widget.offsetController,
+        ),
+        children: _buildTiles(
+          width,
+          height,
+        ).toList(growable: false),
+      );
+
+  /// TODO: необходимо перестраивать клетки
+  /// возвращая не исходные координаты виджетов
+  /// , а результирующие координаты клетки [colOffset], [rowOffset]
+  Iterable<Widget> _buildTiles(
+    int width,
+    int height,
+  ) sync* {
+    final board = context.findAncestorWidgetOfExactType<_Board>()!;
+    final builder = board.builder;
+    final cellSize = board.size;
+    for (var x = 0; x < width; x++) {
+      for (var y = 0; y < height; y++) {
+        yield SizedBox.fromSize(
+          size: cellSize,
+          child: StreamBuilder<int>(
+            stream: _rebuildControllerCol.stream.where((v) => v == x),
+            builder: (context, _) => StreamBuilder<int>(
+              stream: _rebuildControllerRow.stream.where((v) => v == y),
+              builder: (context, _) => builder(x, y),
+            ),
+          ),
+        );
+      }
+    }
+  }
 }
 
 class _BoardFlowDelegate extends FlowDelegate {
@@ -228,7 +370,7 @@ class _BoardFlowDelegate extends FlowDelegate {
 
         // Отрисуем клетку #i
         context.paintChild(
-          i++,
+          i,
           opacity: 1,
           transform: Matrix4.translationValues(
             listenable.value.dx + (x + xBoardOffset * width) * size.width,
@@ -236,6 +378,8 @@ class _BoardFlowDelegate extends FlowDelegate {
             0,
           ),
         );
+
+        i++;
       }
     }
   }

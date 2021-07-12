@@ -22,7 +22,10 @@ class Home extends StatelessWidget {
             tileSize: const Size(120, 120),
             fps: 60,
             debug: true,
-            builder: (x, y) => BoardTile(x: x, y: y),
+            builder: (x, y) {
+              print('Rebuild: $x x $y');
+              return BoardTile(x: x, y: y);
+            },
           ),
         ),
       );
