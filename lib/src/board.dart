@@ -102,8 +102,7 @@ class _BoardState extends State<_Board> {
               child: GestureDetector(
                 onPanCancel: () => _controller.notifyListeners(),
                 onPanEnd: (details) => _controller.notifyListeners(),
-                onPanUpdate: (details) =>
-                    _controller.translate(details.delta.dx, details.delta.dy),
+                onPanUpdate: (details) => _controller.translate(details.delta.dx, details.delta.dy),
                 child: LayoutBuilder(
                   builder: (context, constraints) => _BoardLayout(
                     offsetController: _controller,
@@ -169,8 +168,7 @@ class _BoardLayout extends StatefulWidget {
 class _BoardLayoutState extends State<_BoardLayout> {
   /// Стрим контроллер уведомляющий об изменении по X, от 0 до width
   /// (значение в нем указывает о номере изменившейся колонки)
-  final StreamController<int> _rebuildControllerCol =
-      StreamController<int>.broadcast();
+  final StreamController<int> _rebuildControllerCol = StreamController<int>.broadcast();
 
   /// Предидущий отступ колонок
   int oldColOffset = 0;
@@ -180,10 +178,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
 
   /// Стрим контроллер уведомляющий об изменении по Y, от 0 до height
   /// (значение в нем указывает о номере изменившейся строки)
-  final StreamController<int> _rebuildControllerRow =
-      StreamController<int>.broadcast();
+  final StreamController<int> _rebuildControllerRow = StreamController<int>.broadcast();
 
-  /// Предидущий отступ строк
+  /// Предыдущий отступ строк
   int oldRowOffset = 0;
 
   /// Количество строк умещающихся на экране
@@ -194,14 +191,35 @@ class _BoardLayoutState extends State<_BoardLayout> {
   /// Для перестроения столбца вызывайте [_rebuildControllerCol.add]
   /// с номером столбца (от 0 до width)
   void _rebuildX() {
-    final newColOffset =
-        -(widget.offsetController.value.dx / widget.cellSize.width).ceil();
-    if (newColOffset != oldColOffset) {
-      print('!!!!!!! COL: $oldColOffset => $newColOffset');
-      _rebuildControllerCol.add(0);
-
-      /// TODO: обновлять определенную столбец
+    final newColOffset = -(widget.offsetController.value.dx / widget.cellSize.width).ceil();
+    if (newColOffset == oldColOffset) {
+      return;
     }
+    print('!!!!!!! COL: $oldColOffset => $newColOffset');
+
+    /*
+    //тоже самое что и:
+    while (newCell < 0) {
+      newCell += width;
+    }
+    */
+    var newCell = newColOffset.abs();
+    if (newColOffset < 0) {
+      newCell = width - newCell;
+    }
+
+    if ((oldColOffset - newColOffset) < 0) {
+      //листаем вправо
+      newCell = (width - 2 + newCell) % width;
+      print('листаем вправо: новая клетка по Ox: $newCell (width: $width)');
+    } else {
+      //листаем влево
+      newCell = (newCell - 1) % width;
+      print('листаем влево: новая клетка по Ox: $newCell (width: $width)');
+    }
+    _rebuildControllerCol.add(newCell);
+
+    /// TODO: обновлять определенную столбец
     /*
     for (var x = 0; x < width; x++) {
       // Перемещение столбца
@@ -221,14 +239,28 @@ class _BoardLayoutState extends State<_BoardLayout> {
   /// Для перестроения столбца вызывайте [_rebuildControllerRow.add]
   /// с номером строки (от 0 до height)
   void _rebuildY() {
-    final newRowOffset =
-        -(widget.offsetController.value.dy / widget.cellSize.height).ceil();
-    if (newRowOffset != oldRowOffset) {
-      print('!!!!!!! ROW: $oldRowOffset => $newRowOffset');
-      _rebuildControllerRow.add(0);
-
-      /// TODO: обновлять определенную строку
+    final newRowOffset = -(widget.offsetController.value.dy / widget.cellSize.height).ceil();
+    if (newRowOffset == oldRowOffset) {
+      return;
     }
+    print('!!!!!!! ROW: $oldRowOffset => $newRowOffset');
+    var newCell = newRowOffset.abs();
+    if (newRowOffset < 0) {
+      newCell = height - newCell;
+    }
+
+    if ((oldColOffset - newRowOffset) < 0) {
+      //листаем вниз
+      newCell = (height - 2 + newCell) % height;
+      print('листаем вниз: новая клетка по Oy: $newCell (width: $height)');
+    } else {
+      //листаем вверх
+      newCell = (newCell - 1) % height;
+      print('листаем вверх: новая клетка по Oy: $newCell (width: $height)');
+    }
+    _rebuildControllerRow.add(newCell);
+
+    /// TODO: обновлять определенную строку
     /*
     for (var y = 0; y < height; y++) {
       // Перемещение строки
@@ -261,17 +293,15 @@ class _BoardLayoutState extends State<_BoardLayout> {
   // поместиться на экране по каждой оси
   // с небольшим запасом
   void _evalSizeTileCount() {
-    width = (widget.boardSize.width / widget.cellSize.width).ceil() + 1;
-    height = (widget.boardSize.height / widget.cellSize.height).ceil() + 1;
+    width = (widget.boardSize.width / widget.cellSize.width).ceil() + 2;
+    height = (widget.boardSize.height / widget.cellSize.height).ceil() + 2;
   }
 
   @override
   void dispose() {
     _rebuildControllerCol.close();
     _rebuildControllerRow.close();
-    widget.offsetController
-      ..removeListener(_rebuildX)
-      ..removeListener(_rebuildY);
+    widget.offsetController..removeListener(_rebuildX)..removeListener(_rebuildY);
     super.dispose();
   }
   //endregion
@@ -357,16 +387,14 @@ class _BoardFlowDelegate extends FlowDelegate {
     for (var x = 0; x < width; x++) {
       // Перемещение столбца
       if (colOffset.isNegative) {
-        xBoardOffset =
-            math.min(((width + colOffset - x) / width).ceil() - 1, 0);
+        xBoardOffset = math.min(((width + colOffset - x) / width).ceil() - 1, 0);
       } else {
         xBoardOffset = math.max(((colOffset - x) / width).ceil(), 0);
       }
       for (var y = 0; y < height; y++) {
         // Перемещение строки
         if (rowOffset.isNegative) {
-          yBoardOffset =
-              math.min(((height + rowOffset - y) / height).ceil() - 1, 0);
+          yBoardOffset = math.min(((height + rowOffset - y) / height).ceil() - 1, 0);
         } else {
           yBoardOffset = math.max(((rowOffset - y) / height).ceil(), 0);
         }
@@ -409,9 +437,7 @@ class _ThrottledOffsetController extends _ThrottledController<Offset> {
 }
 
 /// Value Notifier с троттлингом под заданое количество FPS
-abstract class _ThrottledController<T extends Object>
-    with ChangeNotifier
-    implements ValueListenable<T> {
+abstract class _ThrottledController<T extends Object> with ChangeNotifier implements ValueListenable<T> {
   final int _delay;
   final Stopwatch _stopwatch;
 
