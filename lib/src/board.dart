@@ -2,11 +2,15 @@
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 typedef TileBuilder = Widget Function(int x, int y);
+
+///TODO: Добавить возможность инициализации борды при заданном оффсете (желательно как в физическом (пиксели) так и логическом (клеточки))
+///TODO: пре ресайзе окна (изменении ширины/высоты) полностью перерисовать борд с сохранением оффсета
 
 @immutable
 class Board extends StatelessWidget {
@@ -37,6 +41,16 @@ class Board extends StatelessWidget {
         fps: fps,
         debug: debug,
       );
+}
+
+Point<int> getCellsOffset(Offset cameraOffset, Size tileSize) {
+  var offsetTilesX = -1 * (cameraOffset.dx / tileSize.width).truncate();
+  if (offsetTilesX <= 0) {
+    offsetTilesX = -1 * ((cameraOffset.dx + tileSize.width) / tileSize.width).ceil();
+  }
+
+  final offsetTilesY = -1 * (cameraOffset.dy / tileSize.height).truncate();
+  return Point<int>(offsetTilesX, offsetTilesY);
 }
 
 @immutable
@@ -117,20 +131,20 @@ class _BoardState extends State<_Board> {
             Positioned(
               width: math.min(200, MediaQuery.of(context).size.width),
               bottom: 5,
-              height: 20,
+              height: 40,
               child: ColoredBox(
                 color: const Color(0xFF000000),
                 child: Center(
                   child: ValueListenableBuilder<Offset>(
                     builder: (context, value, child) => Text(
-                      '${value.dx.truncate()} x ${value.dy.truncate()}',
+                      '${value.dx.truncate()} x ${value.dy.truncate()} \n ${getCellsOffset(value, widget.size)}',
                       style: const TextStyle(
                         height: 1,
                         fontSize: 12,
                         color: Color(0xFFFFFFFF),
                       ),
                       textAlign: TextAlign.center,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.clip,
                     ),
                     valueListenable: _controller,
@@ -211,7 +225,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
     if ((oldColOffset - newColOffset) < 0) {
       //листаем вправо
       newCell = (width - 2 + newCell) % width;
-      print('листаем вправо: новая клетка по Ox: $newCell (width: $width)');
+      print('листаем вправо: новая клетка по Ox: $newCell');
     } else {
       //листаем влево
       newCell = (newCell - 1) % width;
@@ -336,9 +350,40 @@ class _BoardLayoutState extends State<_BoardLayout> {
           size: cellSize,
           child: StreamBuilder<int>(
             stream: _rebuildControllerCol.stream.where((v) => v == x),
-            builder: (context, _) => StreamBuilder<int>(
+            builder: (context, dataX) => StreamBuilder<int>(
               stream: _rebuildControllerRow.stream.where((v) => v == y),
-              builder: (context, _) => builder(x, y),
+              builder: (context, dataY) {
+                //print('bulding cell with base (x=$x,y=$y) (dataX: ${dataX.hasData})');
+                final offsetCells = getCellsOffset(widget.offsetController.value, widget.cellSize);
+                /*
+                if (widget.offsetController.value.dx > 0) {
+                  final multNegative = ((offsetCells.x - 1) / width).ceil() - 1;
+                  return builder(multNegative * width + x, y);
+                }
+                */
+                /*
+                if (x == 9) {
+                  x = -1;
+                }
+
+                 */
+                final mult = ((offsetCells.x - 1) / width).ceil();
+                var newX = mult * width + x;
+                if (newX > (width + offsetCells.x - 1)) {
+                  newX = offsetCells.x;
+                }
+
+                print('bulding cell with base (x=$newX,y=$y) width=$width');
+                return builder(newX, y);
+                if (offsetCells.x > 0) {
+                  final mult = ((offsetCells.x - 1) / width).ceil();
+                  return builder(mult * width + x, y);
+                } else {
+                  final mult = ((offsetCells.x - width + 1) / width).ceil();
+                  print('multipl: $mult');
+                  return builder(mult * width + x, y);
+                }
+              },
 
               /// TODO: вызывать тайл не с координатами x и y клетки в Flow, а реальными координатами клетки в плоскости доски
               /// TODO: обернуть тайл в специальный виджет, отслеживая необходимость перестроения

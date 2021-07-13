@@ -23,7 +23,7 @@ class Home extends StatelessWidget {
             fps: 60,
             debug: true,
             builder: (x, y) {
-              print('Rebuild: $x x $y');
+              //print('Rebuild: $x x $y');
               return BoardTile(x: x, y: y);
             },
           ),
