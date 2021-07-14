@@ -20,7 +20,7 @@ class Home extends StatelessWidget {
         body: SafeArea(
           child: Board(
             tileSize: const Size(120, 120),
-            fps: 60,
+            fps: 120,
             debug: true,
             builder: (x, y) {
               //print('Rebuild: $x x $y');
