@@ -44,27 +44,12 @@ class Board extends StatelessWidget {
       );
 }
 
-ComplexPoint getCellsOffset(Offset cameraOffset, Size tileSize) {
+Point<int> getCellsOffset(Offset cameraOffset, Size tileSize) {
   //сам рассчет производить относительно текущей позиции камеры и ближайшей к ней клетке (Если левая, то надо ставить угловую позицию, если правая - то плюсовую)
   // прибавить по половине (отцентровать относительно точки) и посмотреть куда ближе камера:
   final offsetTilesX = -1 * ((cameraOffset.dx + tileSize.width) / tileSize.width).ceil();
-
-  final offsetLeftTilesX = -1 * (cameraOffset.dx / tileSize.width).ceil();
-  final leftOxTileCoord = -1 * offsetLeftTilesX * tileSize.width - tileSize.width / 2;
-
-  var movingLeft = false;
-  if ((leftOxTileCoord - cameraOffset.dx) > 0) {
-    //листаем вправо
-    movingLeft = true;
-  }
-
-  var offsetLeftTileX = -1 * ((cameraOffset.dx + tileSize.width / 2) / tileSize.width).ceil();
-  var offsetRightTileX = -1 * ((cameraOffset.dx + tileSize.width + tileSize.width / 2) / tileSize.width).ceil();
-
   final offsetTilesY = -1 * ((cameraOffset.dy + tileSize.height) / tileSize.height).ceil();
-
-  return ComplexPoint(
-      closestPoint: Point<int>(offsetTilesX, offsetTilesY), leftScrolling: movingLeft, topScrolling: true);
+  return Point<int>(offsetTilesX, offsetTilesY);
 }
 
 @immutable
@@ -151,7 +136,7 @@ class _BoardState extends State<_Board> {
                 child: Center(
                   child: ValueListenableBuilder<Offset>(
                     builder: (context, value, child) => Text(
-                      '${value.dx.truncate()} x ${value.dy.truncate()} \n ${getCellsOffset(value, widget.size).closestPoint} \n leftScrolling: ${getCellsOffset(value, widget.size).leftScrolling}',
+                      '${value.dx.truncate()} x ${value.dy.truncate()} \n ${getCellsOffset(value, widget.size)}}',
                       style: const TextStyle(
                         height: 1,
                         fontSize: 12,
@@ -196,7 +181,7 @@ class _BoardLayout extends StatefulWidget {
 class _BoardLayoutState extends State<_BoardLayout> {
   /// Стрим контроллер уведомляющий об изменении по X, от 0 до width
   /// (значение в нем указывает о номере изменившейся колонки)
-  final StreamController<ComplexScroll> _rebuildControllerCol = StreamController<ComplexScroll>.broadcast();
+  final StreamController<int> _rebuildControllerCol = StreamController<int>.broadcast();
 
   /// Предидущий отступ колонок
   int oldColOffset = 0;
@@ -206,7 +191,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
 
   /// Стрим контроллер уведомляющий об изменении по Y, от 0 до height
   /// (значение в нем указывает о номере изменившейся строки)
-  final StreamController<ComplexScroll> _rebuildControllerRow = StreamController<ComplexScroll>.broadcast();
+  final StreamController<int> _rebuildControllerRow = StreamController<int>.broadcast();
 
   /// Предыдущий отступ строк
   int oldRowOffset = 0;
@@ -239,7 +224,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
     }
 
     final complexPoint = getCellsOffset(widget.offsetController.value, widget.cellSize);
-    final offsetCells = complexPoint.closestPoint;
+    final offsetCells = complexPoint;
     final mult = ((offsetCells.x) / width).ceil();
     if ((oldColOffset - newColOffset) < 0) {
       //листаем вправо
@@ -248,7 +233,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       cellMapper.mapOx[newCell] = newX;
 
       print('листаем вправо: новая клетка по Ox: $newCell (значение: $newX)');
-      _rebuildControllerCol.add(ComplexScroll(movedCoord: newCell, leftTopScrolling: false));
+      _rebuildControllerCol.add(newCell);
     } else {
       //листаем влево
       newCell = (newCell - 1) % width;
@@ -256,7 +241,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       cellMapper.mapOx[newCell] = newX;
 
       print('листаем влево: новая клетка по Ox: $newCell (значение: $newX)');
-      _rebuildControllerCol.add(ComplexScroll(movedCoord: newCell, leftTopScrolling: true));
+      _rebuildControllerCol.add(newCell);
     }
 
     /// TODO: обновлять определенную столбец
@@ -290,7 +275,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
     }
 
     final complexPoint = getCellsOffset(widget.offsetController.value, widget.cellSize);
-    final offsetCells = complexPoint.closestPoint;
+    final offsetCells = complexPoint;
     final mult = ((offsetCells.y) / height).ceil();
     if ((oldRowOffset - newRowOffset) < 0) {
       //листаем вниз
@@ -299,7 +284,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       cellMapper.mapOy[newCell] = newY;
 
       print('листаем вниз: новая клетка по Oy: $newCell (значение: $newY)');
-      _rebuildControllerRow.add(ComplexScroll(movedCoord: newCell, leftTopScrolling: false));
+      _rebuildControllerRow.add(newCell);
     } else {
       //листаем вверх
       newCell = (newCell - 1) % height;
@@ -307,21 +292,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
       cellMapper.mapOy[newCell] = newY;
 
       print('листаем вверх: новая клетка по Oy: $newCell (значение: $newY)');
-      _rebuildControllerRow.add(ComplexScroll(movedCoord: newCell, leftTopScrolling: true));
+      _rebuildControllerRow.add(newCell);
     }
 
-    /// TODO: обновлять определенную строку
-    /*
-    for (var y = 0; y < height; y++) {
-      // Перемещение строки
-      if (newRowOffset.isNegative) {
-        final yBoardOffset =
-            math.min(((height + newRowOffset - y) / height).ceil() - 1, 0);
-      } else {
-        final yBoardOffset = math.max(((newRowOffset - y) / height).ceil(), 0);
-      }
-    }
-    */
     oldRowOffset = newRowOffset;
   }
 
@@ -387,14 +360,14 @@ class _BoardLayoutState extends State<_BoardLayout> {
       for (var y = 0; y < height; y++) {
         yield SizedBox.fromSize(
           size: cellSize,
-          child: StreamBuilder<ComplexScroll>(
-            stream: _rebuildControllerCol.stream.where((v) => v.movedCoord == x),
-            builder: (context, dataX) => StreamBuilder<ComplexScroll>(
-              stream: _rebuildControllerRow.stream.where((v) => v.movedCoord == y),
+          child: StreamBuilder<int>(
+            stream: _rebuildControllerCol.stream.where((v) => v == x),
+            builder: (context, dataX) => StreamBuilder<int>(
+              stream: _rebuildControllerRow.stream.where((v) => v == y),
               builder: (context, dataY) {
                 if (widget.offsetController.value.dx.abs() < 10 || widget.offsetController.value.dy.abs() < 10) {
                   final complexPoint = getCellsOffset(widget.offsetController.value, widget.cellSize);
-                  final offsetCells = complexPoint.closestPoint;
+                  final offsetCells = complexPoint;
                   final multX = ((offsetCells.x) / width).ceil();
                   var newX = multX * width + x;
                   if ((newX > (width + offsetCells.x - 1)) && widget.offsetController.value.dx.abs() < 10) {
@@ -408,42 +381,8 @@ class _BoardLayoutState extends State<_BoardLayout> {
                     cellMapper.mapOy[y] = newY;
                   }
                 }
-
-                //print('bulding cell (x=$x,y=$y)');
-                return InkWell(
-                  onTap: () {
-                    print('Clicked: $x $y');
-                  },
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.white30,
-                      border: Border.all(),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$x : $y \n (${cellMapper.mapOx[x] ?? 0} : ${cellMapper.mapOy[y] ?? 0})',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 24,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-
-                return Container(
-                  height: widget.cellSize.height,
-                  width: widget.cellSize.width,
-                  decoration: BoxDecoration(border: Border.all(), color: Colors.blue),
-                  child: Center(
-                    child: Text('b:$x,$y\n t:${cellMapper.mapOx[x] ?? 0},${cellMapper.mapOy[y] ?? 0}'),
-                  ),
-                );
-                //!!! builder(cellMapper.mapOx[x] ?? 0, cellMapper.mapOy[y] ?? 0);
+                return builder(cellMapper.mapOx[x] ?? 0, cellMapper.mapOy[y] ?? 0);
               },
-
-              /// TODO: вызывать тайл не с координатами x и y клетки в Flow, а реальными координатами клетки в плоскости доски
-              /// TODO: обернуть тайл в специальный виджет, отслеживая необходимость перестроения
             ),
           ),
         );
@@ -591,19 +530,6 @@ abstract class _ThrottledController<T extends Object> with ChangeNotifier implem
   @override
   T get value => _value;
   T _value;
-}
-
-class ComplexPoint {
-  final bool leftScrolling;
-  final bool topScrolling;
-  final Point<int> closestPoint;
-  ComplexPoint({required this.closestPoint, required this.leftScrolling, required this.topScrolling});
-}
-
-class ComplexScroll {
-  final bool leftTopScrolling;
-  final int movedCoord;
-  ComplexScroll({required this.movedCoord, required this.leftTopScrolling});
 }
 
 class CellMapper {
