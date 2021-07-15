@@ -230,6 +230,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       //листаем вправо
       newCell = (width - 2 + newCell) % width;
       var newX = mult * width + newCell;
+
       cellMapper.mapOx[newCell] = newX;
 
       print('листаем вправо: новая клетка по Ox: $newCell (значение: $newX)');
@@ -238,24 +239,12 @@ class _BoardLayoutState extends State<_BoardLayout> {
       //листаем влево
       newCell = (newCell - 1) % width;
       var newX = offsetCells.x.round();
+
       cellMapper.mapOx[newCell] = newX;
 
       print('листаем влево: новая клетка по Ox: $newCell (значение: $newX)');
       _rebuildControllerCol.add(newCell);
     }
-
-    /// TODO: обновлять определенную столбец
-    /*
-    for (var x = 0; x < width; x++) {
-      // Перемещение столбца
-      if (newColOffset.isNegative) {
-        final xBoardOffset =
-            math.min(((width + newColOffset - x) / width).ceil() - 1, 0);
-      } else {
-        final xBoardOffset = math.max(((newColOffset - x) / width).ceil(), 0);
-      }
-    }
-    */
     oldColOffset = newColOffset;
   }
 
@@ -281,6 +270,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       //листаем вниз
       newCell = (height - 2 + newCell) % height;
       var newY = mult * height + newCell;
+
       cellMapper.mapOy[newCell] = newY;
 
       print('листаем вниз: новая клетка по Oy: $newCell (значение: $newY)');
@@ -289,6 +279,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       //листаем вверх
       newCell = (newCell - 1) % height;
       var newY = offsetCells.y.round();
+
       cellMapper.mapOy[newCell] = newY;
 
       print('листаем вверх: новая клетка по Oy: $newCell (значение: $newY)');
@@ -308,7 +299,10 @@ class _BoardLayoutState extends State<_BoardLayout> {
 
   @override
   void didUpdateWidget(_BoardLayout oldWidget) {
-    _evalSizeTileCount();
+    print('didUpdateWidget');
+    widget.offsetController.reset();
+    reset();
+    setState(_evalSizeTileCount);
     super.didUpdateWidget(oldWidget);
   }
 
@@ -327,6 +321,11 @@ class _BoardLayoutState extends State<_BoardLayout> {
     _rebuildControllerRow.close();
     widget.offsetController..removeListener(_rebuildX)..removeListener(_rebuildY);
     super.dispose();
+  }
+
+  void reset() {
+    oldRowOffset = 0;
+    oldColOffset = 0;
   }
   //endregion
 
@@ -365,22 +364,6 @@ class _BoardLayoutState extends State<_BoardLayout> {
             builder: (context, dataX) => StreamBuilder<int>(
               stream: _rebuildControllerRow.stream.where((v) => v == y),
               builder: (context, dataY) {
-                if (widget.offsetController.value.dx.abs() < 10 || widget.offsetController.value.dy.abs() < 10) {
-                  final complexPoint = getCellsOffset(widget.offsetController.value, widget.cellSize);
-                  final offsetCells = complexPoint;
-                  final multX = ((offsetCells.x) / width).ceil();
-                  var newX = multX * width + x;
-                  if ((newX > (width + offsetCells.x - 1)) && widget.offsetController.value.dx.abs() < 10) {
-                    newX = offsetCells.x.round();
-                    cellMapper.mapOx[x] = newX;
-                  }
-                  final multY = ((offsetCells.y) / height).ceil();
-                  var newY = multY * height + y;
-                  if ((newY > (height + offsetCells.y - 1)) && widget.offsetController.value.dy.abs() < 10) {
-                    newY = offsetCells.y.round();
-                    cellMapper.mapOy[y] = newY;
-                  }
-                }
                 return builder(cellMapper.mapOx[x] ?? 0, cellMapper.mapOy[y] ?? 0);
               },
             ),
@@ -498,6 +481,11 @@ class _ThrottledOffsetController extends _ThrottledController<Offset> {
 
     return _wasUpdated;
   }
+
+  void reset() {
+    _lastNotifiedValue = const Offset(0, 0);
+    _value = const Offset(0, 0);
+  }
 }
 
 /// Value Notifier с троттлингом под заданое количество FPS
@@ -539,9 +527,19 @@ class CellMapper {
   CellMapper({required int width, required int height}) {
     for (var i = 0; i < width; i++) {
       mapOx[i] = i;
+
+      //вырожденный случай
+      if (i >= (width - 1)) {
+        mapOx[i] = -1;
+      }
     }
     for (var i = 0; i < height; i++) {
       mapOy[i] = i;
+
+      //вырожденный случай
+      if (i >= (height - 1)) {
+        mapOy[i] = -1;
+      }
     }
   }
 }
