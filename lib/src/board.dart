@@ -27,11 +27,18 @@ class Board extends StatelessWidget {
   /// Отображать табличку с текущими координатами
   final bool debug;
 
+  //Начальная угловая (левый верхний угол) координата по X
+  final int startCoordOx;
+  //Начальная угловая (левый верхний угол) координата по Y
+  final int startCoordOy;
+
   const Board({
     required this.builder,
     required this.tileSize,
     this.fps = double.infinity,
     this.debug = false,
+    this.startCoordOx = 0,
+    this.startCoordOy = 0,
     Key? key,
   }) : super(key: key);
 
@@ -41,6 +48,8 @@ class Board extends StatelessWidget {
         size: tileSize,
         fps: fps,
         debug: debug,
+        startCoordOx: startCoordOx,
+        startCoordOy: startCoordOy,
       );
 }
 
@@ -59,11 +68,18 @@ class _Board extends StatefulWidget {
   final num fps;
   final bool debug;
 
+  //Начальная угловая (левый верхний угол) координата по X
+  final int startCoordOx;
+  //Начальная угловая (левый верхний угол) координата по Y
+  final int startCoordOy;
+
   const _Board({
     required this.builder,
     required this.size,
     required this.fps,
     required this.debug,
+    this.startCoordOx = 0,
+    this.startCoordOy = 0,
     Key? key,
   }) : super(key: key);
 
@@ -121,6 +137,8 @@ class _BoardState extends State<_Board> {
                     offsetController: _controller,
                     boardSize: constraints.biggest,
                     cellSize: widget.size,
+                    startCoordOx: widget.startCoordOx,
+                    startCoordOy: widget.startCoordOy,
                   ),
                 ),
               ),
@@ -167,10 +185,15 @@ class _BoardLayout extends StatefulWidget {
   /// Размер доски
   final Size boardSize;
 
+  final int startCoordOx;
+  final int startCoordOy;
+
   const _BoardLayout({
     required this.offsetController,
     required this.cellSize,
     required this.boardSize,
+    this.startCoordOx = 0,
+    this.startCoordOy = 0,
     Key? key,
   }) : super(key: key);
 
@@ -182,6 +205,8 @@ class _BoardLayoutState extends State<_BoardLayout> {
   /// Стрим контроллер уведомляющий об изменении по X, от 0 до width
   /// (значение в нем указывает о номере изменившейся колонки)
   final StreamController<int> _rebuildControllerCol = StreamController<int>.broadcast();
+
+  Offset startOffset = Offset(0, 0);
 
   /// Предидущий отступ колонок
   int oldColOffset = 0;
@@ -231,7 +256,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       newCell = (width - 2 + newCell) % width;
       var newX = mult * width + newCell;
 
-      cellMapper.mapOx[newCell] = newX;
+      cellMapper.mapOx[newCell] = newX + widget.startCoordOx;
 
       print('листаем вправо: новая клетка по Ox: $newCell (значение: $newX)');
       _rebuildControllerCol.add(newCell);
@@ -240,13 +265,15 @@ class _BoardLayoutState extends State<_BoardLayout> {
       newCell = (newCell - 1) % width;
       var newX = offsetCells.x.round();
 
-      cellMapper.mapOx[newCell] = newX;
+      cellMapper.mapOx[newCell] = newX + widget.startCoordOx;
 
       print('листаем влево: новая клетка по Ox: $newCell (значение: $newX)');
       _rebuildControllerCol.add(newCell);
     }
     oldColOffset = newColOffset;
   }
+
+  Offset mapCoordToOffset(int x, int y) => Offset(widget.cellSize.width * x, widget.cellSize.height * y);
 
   /// Вызывается при изменении положения камеры
   /// Вычисляет столбцы нуждающиеся в перестроении
@@ -271,7 +298,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       newCell = (height - 2 + newCell) % height;
       var newY = mult * height + newCell;
 
-      cellMapper.mapOy[newCell] = newY;
+      cellMapper.mapOy[newCell] = newY + widget.startCoordOy;
 
       print('листаем вниз: новая клетка по Oy: $newCell (значение: $newY)');
       _rebuildControllerRow.add(newCell);
@@ -280,7 +307,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       newCell = (newCell - 1) % height;
       var newY = offsetCells.y.round();
 
-      cellMapper.mapOy[newCell] = newY;
+      cellMapper.mapOy[newCell] = newY + widget.startCoordOy;
 
       print('листаем вверх: новая клетка по Oy: $newCell (значение: $newY)');
       _rebuildControllerRow.add(newCell);
@@ -293,26 +320,38 @@ class _BoardLayoutState extends State<_BoardLayout> {
   @override
   void initState() {
     super.initState();
-    _evalSizeTileCount();
+    resetToCoord(widget.startCoordOx, widget.startCoordOy);
+
     widget.offsetController..addListener(_rebuildX)..addListener(_rebuildY);
+  }
+
+  void resetToCoord(int x, int y) {
+    print('resetToCoord: $x $y');
+    startOffset = mapCoordToOffset(x, y);
+    setState(() {
+      _evalSizeTileCount(startX: x, startY: y);
+    });
   }
 
   @override
   void didUpdateWidget(_BoardLayout oldWidget) {
     print('didUpdateWidget');
+    /*
     widget.offsetController.reset();
     reset();
     setState(_evalSizeTileCount);
+
+     */
     super.didUpdateWidget(oldWidget);
   }
 
   // Расчитываю сколько клеточек может
   // поместиться на экране по каждой оси
   // с небольшим запасом
-  void _evalSizeTileCount() {
+  void _evalSizeTileCount({int startX = 0, int startY = 0}) {
     width = (widget.boardSize.width / widget.cellSize.width).ceil() + 2;
     height = (widget.boardSize.height / widget.cellSize.height).ceil() + 2;
-    cellMapper = CellMapper(width: width, height: height);
+    cellMapper = CellMapper(width: width, height: height, startX: startX, startY: startY);
   }
 
   @override
@@ -331,12 +370,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
 
   @override
   Widget build(BuildContext context) => Flow(
-        delegate: _BoardFlowDelegate(
-          width,
-          height,
-          widget.cellSize,
-          widget.offsetController,
-        ),
+        delegate: _BoardFlowDelegate(width, height, widget.cellSize, widget.offsetController, startOffset: startOffset),
         children: _buildTiles(
           width,
           height,
@@ -387,21 +421,18 @@ class _BoardFlowDelegate extends FlowDelegate {
   /// Контроллер со значением координат поля
   final ValueListenable<Offset> listenable;
 
-  _BoardFlowDelegate(
-    this.width,
-    this.height,
-    this.size,
-    this.listenable,
-  ) : super(repaint: listenable);
+  Offset startOffset;
+
+  _BoardFlowDelegate(this.width, this.height, this.size, this.listenable, {this.startOffset = const Offset(0, 0)})
+      : super(repaint: listenable);
 
   @override
   void paintChildren(FlowPaintingContext context) {
     //final boardSize = context.size;
-
     // Количество целых столбцов и строк на которые съехала доска
     // по горизонтали и вертикали
-    final colOffset = -(listenable.value.dx / size.width).ceil();
-    final rowOffset = -(listenable.value.dy / size.height).ceil();
+    final colOffset = -((listenable.value.dx) / size.width).ceil();
+    final rowOffset = -((listenable.value.dy) / size.height).ceil();
 
     // Отступы для смещения в количестве досок
     var xBoardOffset = 0;
@@ -482,9 +513,10 @@ class _ThrottledOffsetController extends _ThrottledController<Offset> {
     return _wasUpdated;
   }
 
-  void reset() {
-    _lastNotifiedValue = const Offset(0, 0);
-    _value = const Offset(0, 0);
+  void reset({double dx = 0, double dy = 0}) {
+    _lastNotifiedValue = Offset(dx, dy);
+    _value = Offset(dx, dy);
+    notifyListeners();
   }
 }
 
@@ -524,21 +556,23 @@ class CellMapper {
   final mapOx = <int, int>{};
   final mapOy = <int, int>{};
 
-  CellMapper({required int width, required int height}) {
-    for (var i = 0; i < width; i++) {
-      mapOx[i] = i;
+  final int startX;
+  final int startY;
 
+  CellMapper({required int width, required int height, this.startX = 0, this.startY = 0}) {
+    for (var i = 0; i < width; i++) {
+      mapOx[i] = i + startX;
       //вырожденный случай
       if (i >= (width - 1)) {
-        mapOx[i] = -1;
+        mapOx[i] = startX - 1;
       }
     }
     for (var i = 0; i < height; i++) {
-      mapOy[i] = i;
+      mapOy[i] = i + startY;
 
       //вырожденный случай
       if (i >= (height - 1)) {
-        mapOy[i] = -1;
+        mapOy[i] = startY - 1;
       }
     }
   }
