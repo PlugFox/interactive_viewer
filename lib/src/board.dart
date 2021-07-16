@@ -10,11 +10,16 @@ import 'package:flutter/widgets.dart';
 
 typedef TileBuilder = Widget Function(int x, int y);
 
-///TODO: Добавить возможность инициализации борды при заданном оффсете (желательно как в физическом (пиксели) так и логическом (клеточки))
-///TODO: пре ресайзе окна (изменении ширины/высоты) полностью перерисовать борд с сохранением оффсета
-
 @immutable
 class Board extends StatelessWidget {
+  /// Размер всей "доски" в тайлах по горизонтали и вертикали. По умолчанию - бесконечно ( Size(0,0) )
+  /// Size(0,10) - соответствует бесконечной оси Ox и 10 клеток по Oy
+  final Size fullBoardSize;
+
+  /// Зациклен ли скролл, по-умолчанию - нет (пустота за пределами)
+  /// При True - значения повторяются (как будто глобус)
+  final bool isCycled;
+
   /// Размер одного тайла
   final Size tileSize;
 
@@ -27,14 +32,17 @@ class Board extends StatelessWidget {
   /// Отображать табличку с текущими координатами
   final bool debug;
 
-  //Начальная угловая (левый верхний угол) координата по X
+  ///Начальная угловая (левый верхний угол) координата по X
   final int startCoordOx;
-  //Начальная угловая (левый верхний угол) координата по Y
+
+  ///Начальная угловая (левый верхний угол) координата по Y
   final int startCoordOy;
 
   const Board({
     required this.builder,
     required this.tileSize,
+    this.fullBoardSize = const Size(0, 0),
+    this.isCycled = false,
     this.fps = double.infinity,
     this.debug = false,
     this.startCoordOx = 0,
@@ -50,6 +58,8 @@ class Board extends StatelessWidget {
         debug: debug,
         startCoordOx: startCoordOx,
         startCoordOy: startCoordOy,
+        fullBoardSize: fullBoardSize,
+        isCycled: isCycled,
       );
 }
 
@@ -68,16 +78,25 @@ class _Board extends StatefulWidget {
   final num fps;
   final bool debug;
 
-  //Начальная угловая (левый верхний угол) координата по X
+  ///Начальная угловая (левый верхний угол) координата по X
   final int startCoordOx;
-  //Начальная угловая (левый верхний угол) координата по Y
+
+  ///Начальная угловая (левый верхний угол) координата по Y
   final int startCoordOy;
+
+  /// Размер всей "доски" в тайлах по горизонтали и вертикали. По умолчанию - бесконечно
+  final Size fullBoardSize;
+
+  /// Зациклен ли скролл, по-умолчанию - нет
+  final bool isCycled;
 
   const _Board({
     required this.builder,
     required this.size,
     required this.fps,
     required this.debug,
+    this.fullBoardSize = const Size(0, 0),
+    this.isCycled = false,
     this.startCoordOx = 0,
     this.startCoordOy = 0,
     Key? key,
@@ -139,6 +158,8 @@ class _BoardState extends State<_Board> {
                     cellSize: widget.size,
                     startCoordOx: widget.startCoordOx,
                     startCoordOy: widget.startCoordOy,
+                    fullBoardSize: widget.fullBoardSize,
+                    isCycled: widget.isCycled,
                   ),
                 ),
               ),
@@ -188,10 +209,18 @@ class _BoardLayout extends StatefulWidget {
   final int startCoordOx;
   final int startCoordOy;
 
+  /// Размер всей "доски" в тайлах по горизонтали и вертикали. По умолчанию - бесконечно
+  final Size fullBoardSize;
+
+  /// Зациклен ли скролл, по-умолчанию - нет
+  final bool isCycled;
+
   const _BoardLayout({
     required this.offsetController,
     required this.cellSize,
     required this.boardSize,
+    required this.fullBoardSize,
+    required this.isCycled,
     this.startCoordOx = 0,
     this.startCoordOy = 0,
     Key? key,
@@ -255,8 +284,10 @@ class _BoardLayoutState extends State<_BoardLayout> {
       //листаем вправо
       newCell = (width - 2 + newCell) % width;
       var newX = mult * width + newCell;
+      newX += widget.startCoordOx;
+      newX = cellMapper.normalizeOx(newX);
 
-      cellMapper.mapOx[newCell] = newX + widget.startCoordOx;
+      cellMapper.mapOx[newCell] = newX;
 
       print('листаем вправо: новая клетка по Ox: $newCell (значение: $newX)');
       _rebuildControllerCol.add(newCell);
@@ -264,9 +295,10 @@ class _BoardLayoutState extends State<_BoardLayout> {
       //листаем влево
       newCell = (newCell - 1) % width;
       var newX = offsetCells.x.round();
+      newX += widget.startCoordOx;
+      newX = cellMapper.normalizeOx(newX);
 
-      cellMapper.mapOx[newCell] = newX + widget.startCoordOx;
-
+      cellMapper.mapOx[newCell] = newX;
       print('листаем влево: новая клетка по Ox: $newCell (значение: $newX)');
       _rebuildControllerCol.add(newCell);
     }
@@ -274,6 +306,8 @@ class _BoardLayoutState extends State<_BoardLayout> {
   }
 
   Offset mapCoordToOffset(int x, int y) => Offset(widget.cellSize.width * x, widget.cellSize.height * y);
+
+  int constCellsOffsetY = 0;
 
   /// Вызывается при изменении положения камеры
   /// Вычисляет столбцы нуждающиеся в перестроении
@@ -297,18 +331,20 @@ class _BoardLayoutState extends State<_BoardLayout> {
       //листаем вниз
       newCell = (height - 2 + newCell) % height;
       var newY = mult * height + newCell;
+      newY += widget.startCoordOy;
+      newY = cellMapper.normalizeOy(newY);
 
-      cellMapper.mapOy[newCell] = newY + widget.startCoordOy;
-
+      cellMapper.mapOy[newCell] = newY;
       print('листаем вниз: новая клетка по Oy: $newCell (значение: $newY)');
       _rebuildControllerRow.add(newCell);
     } else {
       //листаем вверх
       newCell = (newCell - 1) % height;
       var newY = offsetCells.y.round();
+      newY += widget.startCoordOy;
+      newY = cellMapper.normalizeOy(newY);
 
-      cellMapper.mapOy[newCell] = newY + widget.startCoordOy;
-
+      cellMapper.mapOy[newCell] = newY;
       print('листаем вверх: новая клетка по Oy: $newCell (значение: $newY)');
       _rebuildControllerRow.add(newCell);
     }
@@ -351,7 +387,13 @@ class _BoardLayoutState extends State<_BoardLayout> {
   void _evalSizeTileCount({int startX = 0, int startY = 0}) {
     width = (widget.boardSize.width / widget.cellSize.width).ceil() + 2;
     height = (widget.boardSize.height / widget.cellSize.height).ceil() + 2;
-    cellMapper = CellMapper(width: width, height: height, startX: startX, startY: startY);
+    cellMapper = CellMapper(
+        width: width,
+        height: height,
+        startX: startX,
+        startY: startY,
+        isCycled: widget.isCycled,
+        fullBoardSize: widget.fullBoardSize);
   }
 
   @override
@@ -398,7 +440,29 @@ class _BoardLayoutState extends State<_BoardLayout> {
             builder: (context, dataX) => StreamBuilder<int>(
               stream: _rebuildControllerRow.stream.where((v) => v == y),
               builder: (context, dataY) {
-                return builder(cellMapper.mapOx[x] ?? 0, cellMapper.mapOy[y] ?? 0);
+                final oy = cellMapper.mapOy[y] ?? -1;
+                final ox = cellMapper.mapOx[x] ?? -1;
+
+                if (widget.fullBoardSize.height.round() != 0) {
+                  print('build Oy empty box');
+                  if (oy < 0 || oy >= widget.fullBoardSize.height) {
+                    return SizedBox(
+                      width: cellSize.width,
+                      height: cellSize.height,
+                    );
+                  }
+                }
+                if (widget.fullBoardSize.width.round() != 0) {
+                  print('build Ox empty box');
+                  if (ox < 0 || ox >= widget.fullBoardSize.width) {
+                    return SizedBox(
+                      width: cellSize.width,
+                      height: cellSize.height,
+                    );
+                  }
+                }
+
+                return builder(ox, oy);
               },
             ),
           ),
@@ -559,21 +623,63 @@ class CellMapper {
   final int startX;
   final int startY;
 
-  CellMapper({required int width, required int height, this.startX = 0, this.startY = 0}) {
+  /// Размер всей "доски" в тайлах по горизонтали и вертикали. По умолчанию - бесконечно
+  final Size fullBoardSize;
+
+  /// Зациклен ли скролл, по-умолчанию - нет
+  final bool isCycled;
+
+  CellMapper({
+    required int width,
+    required int height,
+    this.startX = 0,
+    this.startY = 0,
+    this.fullBoardSize = const Size(0, 0),
+    this.isCycled = false,
+  }) {
     for (var i = 0; i < width; i++) {
-      mapOx[i] = i + startX;
+      var newX = i + startX;
       //вырожденный случай
       if (i >= (width - 1)) {
-        mapOx[i] = startX - 1;
+        newX = startX - 1;
       }
+
+      mapOx[i] = normalizeOx(newX);
     }
     for (var i = 0; i < height; i++) {
-      mapOy[i] = i + startY;
-
+      var newY = i + startY;
       //вырожденный случай
       if (i >= (height - 1)) {
-        mapOy[i] = startY - 1;
+        newY = startY - 1;
+      }
+
+      mapOy[i] = normalizeOy(newY);
+    }
+  }
+
+  int normalizeOy(int y) {
+    var newY = y;
+    if (isCycled && fullBoardSize.height.round() != 0) {
+      while (newY >= fullBoardSize.height) {
+        newY -= fullBoardSize.height.round();
+      }
+      while (newY < 0) {
+        newY += fullBoardSize.height.round();
       }
     }
+    return newY;
+  }
+
+  int normalizeOx(int x) {
+    var newX = x;
+    if (isCycled && fullBoardSize.width.round() != 0) {
+      while (newX >= fullBoardSize.width) {
+        newX -= fullBoardSize.width.round();
+      }
+      while (newX < 0) {
+        newX += fullBoardSize.width.round();
+      }
+    }
+    return newX;
   }
 }
