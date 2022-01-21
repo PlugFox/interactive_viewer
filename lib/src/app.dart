@@ -25,7 +25,7 @@ class Home extends StatelessWidget {
             startCoordOx: 3,
             startCoordOy: 3,
             isCycled: true, // Is behaving like globus (coords: 0,1,2,3,0,1,2,3)
-            fullBoardSize: const Size(0, 10), // (full bord size)
+            fullBoardSize: const Size(3, 3), // (full bord size)
             builder: (x, y) {
               //print('Rebuild: $x x $y');
               return BoardTile(x: x, y: y);

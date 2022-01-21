@@ -64,6 +64,7 @@ class Board extends StatelessWidget {
 }
 
 Point<int> getCellsOffset(Offset cameraOffset, Size tileSize) {
+  print('cell size:' + tileSize.toString());
   //сам рассчет производить относительно текущей позиции камеры и ближайшей к ней клетке (Если левая, то надо ставить угловую позицию, если правая - то плюсовую)
   // прибавить по половине (отцентровать относительно точки) и посмотреть куда ближе камера:
   final offsetTilesX = -1 * ((cameraOffset.dx + tileSize.width) / tileSize.width).ceil();
@@ -108,11 +109,13 @@ class _Board extends StatefulWidget {
 
 class _BoardState extends State<_Board> {
   late _ThrottledOffsetController _controller;
+  Size currentSize = const Size(100, 100);
 
   //region Lifecycle
   @override
   void initState() {
     super.initState();
+    currentSize = widget.size;
     _controller = _ThrottledOffsetController(
       initialValue: const Offset(0, 0),
       fps: widget.fps,
@@ -148,14 +151,30 @@ class _BoardState extends State<_Board> {
           Positioned.fill(
             child: Center(
               child: GestureDetector(
+                /*
                 onPanCancel: () => _controller.notifyListeners(),
                 onPanEnd: (details) => _controller.notifyListeners(),
-                onPanUpdate: (details) => _controller.translate(details.delta.dx, details.delta.dy),
+                onPanUpdate: (details) {
+                  print('details.delta.distanceSquared:' + details.globalPosition.distanceSquared.toString());
+
+                  _controller.translate(details.delta.dx, details.delta.dy);
+                },
+
+                 */
+                onScaleUpdate: (scaleInfo) {
+                  //print('scaleInfo.focalPointDelta: ' + scaleInfo.focalPointDelta.toString());
+                  _controller.translate(scaleInfo.focalPointDelta.dx, scaleInfo.focalPointDelta.dy);
+                  if (scaleInfo.scale > 0.5 && scaleInfo.scale < 2 && scaleInfo.scale != 1) {
+                    setState(() {
+                      currentSize = Size(widget.size.width * scaleInfo.scale, widget.size.height * scaleInfo.scale);
+                    });
+                  }
+                },
                 child: LayoutBuilder(
                   builder: (context, constraints) => _BoardLayout(
                     offsetController: _controller,
                     boardSize: constraints.biggest,
-                    cellSize: widget.size,
+                    cellSize: currentSize,
                     startCoordOx: widget.startCoordOx,
                     startCoordOy: widget.startCoordOy,
                     fullBoardSize: widget.fullBoardSize,
@@ -358,7 +377,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
     super.initState();
     resetToCoord(widget.startCoordOx, widget.startCoordOy);
 
-    widget.offsetController..addListener(_rebuildX)..addListener(_rebuildY);
+    widget.offsetController
+      ..addListener(_rebuildX)
+      ..addListener(_rebuildY);
   }
 
   void resetToCoord(int x, int y) {
@@ -385,8 +406,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
   // поместиться на экране по каждой оси
   // с небольшим запасом
   void _evalSizeTileCount({int startX = 0, int startY = 0}) {
-    width = (widget.boardSize.width / widget.cellSize.width).ceil() + 2;
-    height = (widget.boardSize.height / widget.cellSize.height).ceil() + 2;
+    print('_evalSizeTileCount cell size:' + widget.boardSize.toString());
+    width = ((widget.boardSize.width / widget.cellSize.width).ceil() + 2) * 2;
+    height = ((widget.boardSize.height / widget.cellSize.height).ceil() + 2) * 2;
     cellMapper = CellMapper(
         width: width,
         height: height,
@@ -400,7 +422,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
   void dispose() {
     _rebuildControllerCol.close();
     _rebuildControllerRow.close();
-    widget.offsetController..removeListener(_rebuildX)..removeListener(_rebuildY);
+    widget.offsetController
+      ..removeListener(_rebuildX)
+      ..removeListener(_rebuildY);
     super.dispose();
   }
 
@@ -416,6 +440,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
         children: _buildTiles(
           width,
           height,
+          widget.cellSize,
         ).toList(growable: false),
       );
 
@@ -427,10 +452,12 @@ class _BoardLayoutState extends State<_BoardLayout> {
   Iterable<Widget> _buildTiles(
     int width,
     int height,
+    Size cellSize,
   ) sync* {
     final board = context.findAncestorWidgetOfExactType<_Board>()!;
     final builder = board.builder;
-    final cellSize = board.size;
+    //final cellSize = board.size;
+    print('_buildTiles cellSize: ' + cellSize.toString());
     for (var x = 0; x < width; x++) {
       for (var y = 0; y < height; y++) {
         yield SizedBox.fromSize(
@@ -444,7 +471,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
                 final ox = cellMapper.mapOx[x] ?? -1;
 
                 if (widget.fullBoardSize.height.round() != 0) {
-                  print('build Oy empty box');
+                  //!print('build Oy empty box');
                   if (oy < 0 || oy >= widget.fullBoardSize.height) {
                     return SizedBox(
                       width: cellSize.width,
@@ -453,7 +480,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
                   }
                 }
                 if (widget.fullBoardSize.width.round() != 0) {
-                  print('build Ox empty box');
+                  //!print('build Ox empty box');
                   if (ox < 0 || ox >= widget.fullBoardSize.width) {
                     return SizedBox(
                       width: cellSize.width,
@@ -561,19 +588,7 @@ class _ThrottledOffsetController extends _ThrottledController<Offset> {
 
   @override
   bool update(Offset value) {
-    final diffDx = value.dx - _lastNotifiedValue.dx;
-    final diffDy = value.dy - _lastNotifiedValue.dy;
-    final updateDx = diffDx.abs() < scrollThreshold;
-    final updateDy = diffDy.abs() < scrollThreshold;
-
-    //Если скроллим слишком быстро, то сильно уменьшаем скорость скролла:
-    final newOffset = Offset(updateDx ? value.dx : (_lastNotifiedValue.dx + diffDx / 4),
-        updateDy ? value.dy : (_lastNotifiedValue.dy + diffDy / 4));
-    _wasUpdated = super.update(newOffset);
-    if (_wasUpdated) {
-      _lastNotifiedValue = newOffset;
-    }
-
+    _wasUpdated = super.update(value);
     return _wasUpdated;
   }
 
