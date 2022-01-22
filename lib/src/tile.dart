@@ -18,26 +18,22 @@ class BoardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final whiteCell = x.isOdd ^ y.isOdd;
-    return InkWell(
-      onTap: () {
-        print('Clicked: $x $y');
-      },
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: whiteCell ? _white : _black,
-          border: Border.all(
-            color: whiteCell ? _black : _white,
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: whiteCell ? _white : _black,
+        border: Border.all(
+          width: 4,
+          color: whiteCell ? _black : _white,
         ),
-        child: Center(
-          child: Text(
-            '$x : $y',
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            style: TextStyle(
-              color: whiteCell ? _black : _white,
-              fontSize: 32,
-            ),
+      ),
+      child: Center(
+        child: Text(
+          '$x : $y',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          style: TextStyle(
+            color: whiteCell ? _black : _white,
+            fontSize: 32,
           ),
         ),
       ),

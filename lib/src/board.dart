@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
 typedef TileBuilder = Widget Function(int x, int y);
+typedef TileCallback = void Function(int x, int y);
 
 @immutable
 class Board extends StatelessWidget {
@@ -25,6 +26,7 @@ class Board extends StatelessWidget {
 
   /// Коллбэк вызывается для построения каждого попавшей в поле зрения
   final TileBuilder builder;
+  final TileCallback? onTileTap;
 
   /// Ограничение на FPS, по умолчанию - без ограничения
   final num fps;
@@ -44,6 +46,14 @@ class Board extends StatelessWidget {
   ///Максимально возможное отдаление камеры
   final double zoomOutScale;
 
+  static double? sizeOfTile(BuildContext context, {bool listen = true}) {
+    if (listen) {
+      return context.dependOnInheritedWidgetOfExactType<_InheritedTileSize>()?.tileSize;
+    }
+    final widget = context.getElementForInheritedWidgetOfExactType<_InheritedTileSize>()?.widget;
+    return widget is _InheritedTileSize ? widget.tileSize : null;
+  }
+
   const Board({
     required this.builder,
     required this.tileSize,
@@ -55,6 +65,7 @@ class Board extends StatelessWidget {
     this.startCoordOy = 0,
     this.zoomInScale = 2,
     this.zoomOutScale = 2,
+    this.onTileTap,
     Key? key,
   }) : super(key: key);
 
@@ -70,6 +81,7 @@ class Board extends StatelessWidget {
         isCycled: isCycled,
         zoomInScale: zoomInScale,
         zoomOutScale: zoomOutScale,
+        onTileTap: onTileTap,
       );
 }
 
@@ -85,6 +97,7 @@ Point<int> getCellsOffset(Offset cameraOffset, Size tileSize) {
 class _Board extends StatefulWidget {
   final Size size;
   final TileBuilder builder;
+  final TileCallback? onTileTap;
   final num fps;
   final bool debug;
 
@@ -114,6 +127,7 @@ class _Board extends StatefulWidget {
     this.startCoordOy = 0,
     this.zoomInScale = 2,
     this.zoomOutScale = 2,
+    this.onTileTap,
     Key? key,
   }) : super(key: key);
 
@@ -123,7 +137,7 @@ class _Board extends StatefulWidget {
 
 class _BoardState extends State<_Board> {
   late _ThrottledOffsetController _controller;
-  Size currentSize = const Size(100, 100);
+  double currentZoom = 1;
 
   late final double zoomOutDivided;
 
@@ -132,11 +146,12 @@ class _BoardState extends State<_Board> {
   void initState() {
     super.initState();
     zoomOutDivided = 1 / widget.zoomOutScale;
-    currentSize = widget.size;
     _controller = _ThrottledOffsetController(
       initialValue: const Offset(0, 0),
       fps: widget.fps,
     );
+    //matrix.translate(100.0);
+    matrix[15] = zoomOutDivided;
   }
 
   @override
@@ -161,61 +176,86 @@ class _BoardState extends State<_Board> {
   }
   //endregion
 
+  Matrix4 matrix = Matrix4.identity();
   @override
-  Widget build(BuildContext context) => Stack(
-        alignment: Alignment.center,
-        children: <Widget>[
-          Positioned.fill(
-            child: Center(
-              child: GestureDetector(
-                onScaleUpdate: (scaleInfo) {
-                  _controller.translate(scaleInfo.focalPointDelta.dx, scaleInfo.focalPointDelta.dy);
-                  if (scaleInfo.scale > 0.5 && scaleInfo.scale < widget.zoomInScale && scaleInfo.scale != 1) {
-                    setState(() {
-                      currentSize = Size(widget.size.width * scaleInfo.scale, widget.size.height * scaleInfo.scale);
-                    });
-                  }
-                },
-                child: LayoutBuilder(
-                  builder: (context, constraints) => _BoardLayout(
-                    offsetController: _controller,
-                    boardSize: constraints.biggest,
-                    cellSize: currentSize,
-                    startCoordOx: widget.startCoordOx,
-                    startCoordOy: widget.startCoordOy,
-                    fullBoardSize: widget.fullBoardSize,
-                    isCycled: widget.isCycled,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (widget.debug)
-            Positioned(
-              width: math.min(200, MediaQuery.of(context).size.width),
-              bottom: 5,
-              height: 40,
-              child: ColoredBox(
-                color: const Color(0xFF000000),
-                child: Center(
-                  child: ValueListenableBuilder<Offset>(
-                    builder: (context, value, child) => Text(
-                      '${value.dx.truncate()} x ${value.dy.truncate()} \n ${getCellsOffset(value, widget.size)}}',
-                      style: const TextStyle(
-                        height: 1,
-                        fontSize: 12,
-                        color: Color(0xFFFFFFFF),
+  Widget build(BuildContext context) => _InheritedTileSize(
+        tileSize: currentZoom,
+        child: Stack(
+          alignment: Alignment.center,
+          children: <Widget>[
+            Positioned.fill(
+              child: Center(
+                child: GestureDetector(
+                  onScaleUpdate: (scaleInfo) {
+                    _controller.translate(scaleInfo.focalPointDelta.dx, scaleInfo.focalPointDelta.dy);
+                    if (scaleInfo.scale != 1) {
+                      var scale = 1.0;
+                      if (scaleInfo.scale < zoomOutDivided) {
+                        scale = zoomOutDivided;
+                      }
+                      if (scaleInfo.scale > widget.zoomInScale) {
+                        scale = widget.zoomInScale;
+                      }
+
+                      setState(() {
+                        currentZoom = 1 / scale;
+                        matrix[15] = currentZoom * zoomOutDivided;
+
+                        /*
+                        matrix
+                          ..setIdentity()
+                          ..scale(scaleInfo.scale / 64, scaleInfo.scale / 64);
+
+                         */
+                        //matrix.row3.w = scaleInfo.scale;
+                        //currentSize = Size(widget.size.width * scaleInfo.scale, widget.size.height * scaleInfo.scale);
+                      });
+                    }
+                  },
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Transform(
+                      transform: matrix,
+                      child: _BoardLayout(
+                        offsetController: _controller,
+                        boardSize: constraints.biggest,
+                        cellSize: widget.size,
+                        startCoordOx: widget.startCoordOx,
+                        startCoordOy: widget.startCoordOy,
+                        fullBoardSize: widget.fullBoardSize,
+                        isCycled: widget.isCycled,
                       ),
-                      textAlign: TextAlign.center,
-                      //maxLines: 2,
-                      overflow: TextOverflow.clip,
                     ),
-                    valueListenable: _controller,
                   ),
                 ),
               ),
             ),
-        ],
+            if (widget.debug)
+              Positioned(
+                width: math.min(200, MediaQuery.of(context).size.width),
+                bottom: 5,
+                height: 40,
+                child: ColoredBox(
+                  color: const Color(0xFF000000),
+                  child: Center(
+                    child: ValueListenableBuilder<Offset>(
+                      builder: (context, value, child) => Text(
+                        '${value.dx.truncate()} x ${value.dy.truncate()} \n ${getCellsOffset(value, widget.size)}}',
+                        style: const TextStyle(
+                          height: 1,
+                          fontSize: 12,
+                          color: Color(0xFFFFFFFF),
+                        ),
+                        textAlign: TextAlign.center,
+                        //maxLines: 2,
+                        overflow: TextOverflow.clip,
+                      ),
+                      valueListenable: _controller,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       );
 }
 
@@ -415,8 +455,8 @@ class _BoardLayoutState extends State<_BoardLayout> {
   // поместиться на экране по каждой оси
   // с небольшим запасом
   void _evalSizeTileCount({int startX = 0, int startY = 0}) {
-    width = (widget.boardSize.width * widget.zoomOutScale / widget.cellSize.width).ceil() + 2;
-    height = ((widget.boardSize.height * widget.zoomOutScale / widget.cellSize.height).ceil() + 2) * 2;
+    width = (widget.boardSize.width / widget.cellSize.width).ceil() + 4;
+    height = (widget.boardSize.height / widget.cellSize.height).ceil() + 4;
     cellMapper = CellMapper(
         width: width,
         height: height,
@@ -464,6 +504,10 @@ class _BoardLayoutState extends State<_BoardLayout> {
   ) sync* {
     final board = context.findAncestorWidgetOfExactType<_Board>()!;
     final builder = board.builder;
+    final callback = board.onTileTap;
+    final matrix4 = Matrix4.identity();
+    matrix4[15] = board.zoomOutScale;
+
     //final cellSize = board.size;
     print('_buildTiles cellSize: ' + cellSize.toString());
     for (var x = 0; x < width; x++) {
@@ -496,8 +540,32 @@ class _BoardLayoutState extends State<_BoardLayout> {
                     );
                   }
                 }
+                if (callback == null) {
+                  return InkWell(
+                    child: Transform(
+                      transform: matrix4,
+                      child: OverflowBox(
+                        maxWidth: cellSize.width * board.zoomOutScale,
+                        maxHeight: cellSize.height * board.zoomOutScale,
+                        child: builder(ox, oy),
+                      ),
+                    ),
+                  );
+                }
 
-                return builder(ox, oy);
+                return InkWell(
+                  onTap: () {
+                    callback(ox, oy);
+                  },
+                  child: Transform(
+                    transform: matrix4,
+                    child: OverflowBox(
+                      maxWidth: cellSize.width * board.zoomOutScale,
+                      maxHeight: cellSize.height * board.zoomOutScale,
+                      child: builder(ox, oy),
+                    ),
+                  ),
+                );
               },
             ),
           ),
@@ -558,8 +626,10 @@ class _BoardFlowDelegate extends FlowDelegate {
           i,
           opacity: 1,
           transform: Matrix4.translationValues(
-            listenable.value.dx + (x + xBoardOffset * width) * size.width,
-            listenable.value.dy + (y + yBoardOffset * height) * size.height,
+            listenable.value.dx +
+                (x - 2 + xBoardOffset * width) * size.width, // -2 чтобы был небольшой запас при листании влево
+            listenable.value.dy +
+                (y - 2 + yBoardOffset * height) * size.height, // -2 чтобы был небольшой запас при листании вверх
             0,
           ),
         );
@@ -705,4 +775,18 @@ class CellMapper {
     }
     return newX;
   }
+}
+
+@immutable
+class _InheritedTileSize extends InheritedWidget {
+  final double tileSize;
+
+  const _InheritedTileSize({
+    required this.tileSize,
+    required Widget child,
+    Key? key,
+  }) : super(key: key, child: child);
+
+  @override
+  bool updateShouldNotify(_InheritedTileSize oldWidget) => tileSize != oldWidget.tileSize;
 }
