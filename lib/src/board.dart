@@ -38,6 +38,12 @@ class Board extends StatelessWidget {
   ///Начальная угловая (левый верхний угол) координата по Y
   final int startCoordOy;
 
+  ///Максимально доступное приближение камеры
+  final double zoomInScale;
+
+  ///Максимально возможное отдаление камеры
+  final double zoomOutScale;
+
   const Board({
     required this.builder,
     required this.tileSize,
@@ -47,6 +53,8 @@ class Board extends StatelessWidget {
     this.debug = false,
     this.startCoordOx = 0,
     this.startCoordOy = 0,
+    this.zoomInScale = 2,
+    this.zoomOutScale = 2,
     Key? key,
   }) : super(key: key);
 
@@ -60,11 +68,12 @@ class Board extends StatelessWidget {
         startCoordOy: startCoordOy,
         fullBoardSize: fullBoardSize,
         isCycled: isCycled,
+        zoomInScale: zoomInScale,
+        zoomOutScale: zoomOutScale,
       );
 }
 
 Point<int> getCellsOffset(Offset cameraOffset, Size tileSize) {
-  print('cell size:' + tileSize.toString());
   //сам рассчет производить относительно текущей позиции камеры и ближайшей к ней клетке (Если левая, то надо ставить угловую позицию, если правая - то плюсовую)
   // прибавить по половине (отцентровать относительно точки) и посмотреть куда ближе камера:
   final offsetTilesX = -1 * ((cameraOffset.dx + tileSize.width) / tileSize.width).ceil();
@@ -91,6 +100,9 @@ class _Board extends StatefulWidget {
   /// Зациклен ли скролл, по-умолчанию - нет
   final bool isCycled;
 
+  final double zoomInScale;
+  final double zoomOutScale;
+
   const _Board({
     required this.builder,
     required this.size,
@@ -100,6 +112,8 @@ class _Board extends StatefulWidget {
     this.isCycled = false,
     this.startCoordOx = 0,
     this.startCoordOy = 0,
+    this.zoomInScale = 2,
+    this.zoomOutScale = 2,
     Key? key,
   }) : super(key: key);
 
@@ -111,10 +125,13 @@ class _BoardState extends State<_Board> {
   late _ThrottledOffsetController _controller;
   Size currentSize = const Size(100, 100);
 
+  late final double zoomOutDivided;
+
   //region Lifecycle
   @override
   void initState() {
     super.initState();
+    zoomOutDivided = 1 / widget.zoomOutScale;
     currentSize = widget.size;
     _controller = _ThrottledOffsetController(
       initialValue: const Offset(0, 0),
@@ -151,20 +168,9 @@ class _BoardState extends State<_Board> {
           Positioned.fill(
             child: Center(
               child: GestureDetector(
-                /*
-                onPanCancel: () => _controller.notifyListeners(),
-                onPanEnd: (details) => _controller.notifyListeners(),
-                onPanUpdate: (details) {
-                  print('details.delta.distanceSquared:' + details.globalPosition.distanceSquared.toString());
-
-                  _controller.translate(details.delta.dx, details.delta.dy);
-                },
-
-                 */
                 onScaleUpdate: (scaleInfo) {
-                  //print('scaleInfo.focalPointDelta: ' + scaleInfo.focalPointDelta.toString());
                   _controller.translate(scaleInfo.focalPointDelta.dx, scaleInfo.focalPointDelta.dy);
-                  if (scaleInfo.scale > 0.5 && scaleInfo.scale < 2 && scaleInfo.scale != 1) {
+                  if (scaleInfo.scale > 0.5 && scaleInfo.scale < widget.zoomInScale && scaleInfo.scale != 1) {
                     setState(() {
                       currentSize = Size(widget.size.width * scaleInfo.scale, widget.size.height * scaleInfo.scale);
                     });
@@ -234,6 +240,8 @@ class _BoardLayout extends StatefulWidget {
   /// Зациклен ли скролл, по-умолчанию - нет
   final bool isCycled;
 
+  final double zoomOutScale;
+
   const _BoardLayout({
     required this.offsetController,
     required this.cellSize,
@@ -242,6 +250,7 @@ class _BoardLayout extends StatefulWidget {
     required this.isCycled,
     this.startCoordOx = 0,
     this.startCoordOy = 0,
+    this.zoomOutScale = 2,
     Key? key,
   }) : super(key: key);
 
@@ -406,9 +415,8 @@ class _BoardLayoutState extends State<_BoardLayout> {
   // поместиться на экране по каждой оси
   // с небольшим запасом
   void _evalSizeTileCount({int startX = 0, int startY = 0}) {
-    print('_evalSizeTileCount cell size:' + widget.boardSize.toString());
-    width = ((widget.boardSize.width / widget.cellSize.width).ceil() + 2) * 2;
-    height = ((widget.boardSize.height / widget.cellSize.height).ceil() + 2) * 2;
+    width = (widget.boardSize.width * widget.zoomOutScale / widget.cellSize.width).ceil() + 2;
+    height = ((widget.boardSize.height * widget.zoomOutScale / widget.cellSize.height).ceil() + 2) * 2;
     cellMapper = CellMapper(
         width: width,
         height: height,
