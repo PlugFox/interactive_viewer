@@ -33,7 +33,7 @@ class BoardTile extends StatelessWidget {
           maxLines: 1,
           style: TextStyle(
             color: whiteCell ? _black : _white,
-            fontSize: 32,
+            fontSize: 18,
           ),
         ),
       ),
