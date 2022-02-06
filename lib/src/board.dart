@@ -309,7 +309,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
   int oldColOffset = 0;
 
   /// Количество колонок умещающихся на экране
-  int width = 0;
+  int widthScreen = 0;
 
   /// Стрим контроллер уведомляющий об изменении по Y, от 0 до height
   /// (значение в нем указывает о номере изменившейся строки)
@@ -332,7 +332,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
     if (newColOffset == oldColOffset) {
       return;
     }
-    print('!!!!!!! COL: $oldColOffset => $newColOffset');
+    print('!!!!!!! COL [widthScreen: $widthScreen]: $oldColOffset => $newColOffset');
 
     /*
     //тоже самое что и:
@@ -342,16 +342,16 @@ class _BoardLayoutState extends State<_BoardLayout> {
     */
     var newCell = newColOffset.abs();
     if (newColOffset < 0) {
-      newCell = width - newCell;
+      newCell = widthScreen - newCell;
     }
 
     final complexPoint = getCellsOffset(widget.offsetController.value, widget.cellSize);
     final offsetCells = complexPoint;
-    final mult = ((offsetCells.x) / width).ceil();
+    final mult = ((offsetCells.x) / widthScreen).ceil();
     if ((oldColOffset - newColOffset) < 0) {
       //листаем вправо
-      newCell = (width - 2 + newCell) % width;
-      var newX = mult * width + newCell;
+      newCell = (widthScreen - 2 + newCell) % widthScreen;
+      var newX = mult * widthScreen + newCell;
       newX += widget.startCoordOx;
       newX = cellMapper.normalizeOx(newX);
 
@@ -361,7 +361,7 @@ class _BoardLayoutState extends State<_BoardLayout> {
       _rebuildControllerCol.add(newCell);
     } else {
       //листаем влево
-      newCell = (newCell - 1) % width;
+      newCell = (newCell - 1) % widthScreen;
       var newX = offsetCells.x.round();
       newX += widget.startCoordOx;
       newX = cellMapper.normalizeOx(newX);
@@ -455,10 +455,10 @@ class _BoardLayoutState extends State<_BoardLayout> {
   // поместиться на экране по каждой оси
   // с небольшим запасом
   void _evalSizeTileCount({int startX = 0, int startY = 0}) {
-    width = (widget.boardSize.width / widget.cellSize.width).ceil() + 4;
+    widthScreen = (widget.boardSize.width / widget.cellSize.width).ceil() + 4;
     height = (widget.boardSize.height / widget.cellSize.height).ceil() + 4;
     cellMapper = CellMapper(
-        width: width,
+        width: widthScreen,
         height: height,
         startX: startX,
         startY: startY,
@@ -484,9 +484,10 @@ class _BoardLayoutState extends State<_BoardLayout> {
 
   @override
   Widget build(BuildContext context) => Flow(
-        delegate: _BoardFlowDelegate(width, height, widget.cellSize, widget.offsetController, startOffset: startOffset),
+        delegate:
+            _BoardFlowDelegate(widthScreen, height, widget.cellSize, widget.offsetController, startOffset: startOffset),
         children: _buildTiles(
-          width,
+          widthScreen,
           height,
           widget.cellSize,
         ).toList(growable: false),

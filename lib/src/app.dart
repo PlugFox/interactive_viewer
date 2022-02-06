@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game_board/src/board.dart';
 import 'package:game_board/src/tile.dart';
-import 'package:game_board/src/tile_family_proxy_builder.dart';
 
 class App extends StatelessWidget {
   const App({Key? key}) : super(key: key);
@@ -19,7 +18,7 @@ class Home extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const proxyLength = 5;
-    const tileSize = 121.0;
+    const tileSize = 81.0;
     final tileSizeModif = (tileSize * proxyLength).roundToDouble();
 
     print('tileSize: $tileSize , tileSizeModif: $tileSizeModif');
@@ -40,7 +39,9 @@ class Home extends StatelessWidget {
           fullBoardSize: Size((boardSizeOx / proxyLength).roundToDouble(),
               (boardSizeOy / proxyLength).roundToDouble()), // (full bord size)
 
-          builder: (dx, dy) => TileFamilyProxyBuilder(
+          builder: (dx, dy) => BoardTile(x: dx, y: dy),
+
+          /*TileFamilyProxyBuilder(
             tilesInProxy: Size(proxyLength.toDouble(), proxyLength.toDouble()),
             parentOffset: Offset(dx.toDouble(), dy.toDouble()),
             fullBoardSize: Size(boardSizeOx, boardSizeOy),
@@ -49,7 +50,7 @@ class Home extends StatelessWidget {
               //print('Rebuild: $x x $y');
               return BoardTile(x: x, y: y);
             },
-          ),
+          ),*/
         ),
       ),
     );
