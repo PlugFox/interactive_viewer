@@ -124,7 +124,7 @@ class _BoardState extends State<_Board> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.fps != widget.fps) {
       final oldController = _controller;
-      WidgetsBinding.instance?.addPostFrameCallback(
+      WidgetsBinding.instance.addPostFrameCallback(
         (_) => oldController.dispose(),
       );
       _controller = _ThrottledOffsetController(
@@ -358,7 +358,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
     super.initState();
     resetToCoord(widget.startCoordOx, widget.startCoordOy);
 
-    widget.offsetController..addListener(_rebuildX)..addListener(_rebuildY);
+    widget.offsetController
+      ..addListener(_rebuildX)
+      ..addListener(_rebuildY);
   }
 
   void resetToCoord(int x, int y) {
@@ -400,7 +402,9 @@ class _BoardLayoutState extends State<_BoardLayout> {
   void dispose() {
     _rebuildControllerCol.close();
     _rebuildControllerRow.close();
-    widget.offsetController..removeListener(_rebuildX)..removeListener(_rebuildY);
+    widget.offsetController
+      ..removeListener(_rebuildX)
+      ..removeListener(_rebuildY);
     super.dispose();
   }
 
