@@ -18,8 +18,10 @@ class Home extends StatelessWidget {
   static const mapProperties = MapProperties(
     tileWidth: 100,
     tileHeight: 100,
-    tilesOx: 10,
-    tilesOy: 10,
+    tilesOx: 20,
+    tilesOy: 20,
+    tilesOxDisplayed: 10,
+    tilesOyDisplayed: 10,
   );
 
   @override
@@ -28,14 +30,18 @@ class Home extends StatelessWidget {
           child: TwoDimensionsMap(
             isDebug: true,
             mapProperties: mapProperties,
-            coordinateBuilder: (int x, int y) => Container(
-              color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
-              width: mapProperties.tileWidth,
-              height: mapProperties.tileHeight,
-              child: Center(
-                child: Text(
-                  '[$x;$y]',
-                  style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
+            coordinateBuilder: (int x, int y) => TestWidget(
+              key: ValueKey('$x,$y'),
+              name: '[builder $x,$y]',
+              widget: Container(
+                color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
+                width: mapProperties.tileWidth,
+                height: mapProperties.tileHeight,
+                child: Center(
+                  child: Text(
+                    '[$x;$y]',
+                    style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
+                  ),
                 ),
               ),
             ),
@@ -64,4 +70,23 @@ class Home extends StatelessWidget {
       );
 
    */
+}
+
+class TestWidget extends StatelessWidget {
+  const TestWidget({
+    required this.name,
+    required this.widget,
+    Key? key,
+  }) : super(key: key);
+  final Widget widget;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    print(name);
+    return SizedBox(
+      key: key,
+      child: widget,
+    );
+  }
 }

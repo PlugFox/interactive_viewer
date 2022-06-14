@@ -23,7 +23,13 @@ class TwoDimensionsMap extends StatefulWidget {
 }
 
 class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
-  final _controller = ThrottledOffsetController(initialValue: const Offset(0, 0));
+  late final fullMapOx = widget.mapProperties.tileWidth * widget.mapProperties.tilesOxDisplayed;
+  late final fullMapOy = widget.mapProperties.tileHeight * widget.mapProperties.tilesOyDisplayed;
+  late final _controller = ThrottledOffsetController(
+    initialValue: const Offset(0, 0),
+    mapOxLength: fullMapOx,
+    mapOyLength: fullMapOy,
+  );
 
   @override
   Widget build(BuildContext context) => Stack(
@@ -32,7 +38,9 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
           Positioned.fill(
             child: Center(
               child: GestureDetector(
-                onPanUpdate: (details) => _controller.translate(details.delta.dx, details.delta.dy),
+                onPanUpdate: (details) {
+                  _controller.translate(details.delta.dx, details.delta.dy);
+                },
                 child: LayoutBuilder(
                   builder: (context, constraints) => MapLayout(
                     offsetController: _controller,

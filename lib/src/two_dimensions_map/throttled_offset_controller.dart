@@ -4,13 +4,35 @@ import 'package:flutter/foundation.dart';
 
 /// Контроллер отслеживающий отступ камеры для доски
 class ThrottledOffsetController extends ThrottledController<Offset> {
+  final double mapOxLength;
+  final double mapOyLength;
+
   ThrottledOffsetController({
     required Offset initialValue,
+    required this.mapOxLength,
+    required this.mapOyLength,
   }) : super(
           initialValue: initialValue,
         );
 
-  void translate(double x, double y) => update(value.translate(x, y));
+  void translate(double x, double y) {
+    var newValue = value.translate(x, y);
+
+    if (newValue.dx > mapOxLength) {
+      newValue = newValue.translate(-mapOxLength, 0);
+    }
+    if (newValue.dx < -mapOxLength) {
+      newValue = newValue.translate(mapOxLength, 0);
+    }
+    if (newValue.dy > mapOyLength) {
+      newValue = newValue.translate(0, -mapOyLength);
+    }
+    if (newValue.dy < -mapOyLength) {
+      newValue = newValue.translate(0, mapOyLength);
+    }
+
+    update(newValue);
+  }
 
   void reset({double dx = 0, double dy = 0}) {
     _value = Offset(dx, dy);

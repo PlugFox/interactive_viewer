@@ -37,11 +37,17 @@ class _MapLayoutState extends State<MapLayout> {
   }
 
   @override
+  void dispose() {
+    tilesBuilder.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Flow(
         delegate: MapFlowDelegate(
           listenable: widget.offsetController,
           tilesBuilder: tilesBuilder,
         ),
-        children: tilesBuilder.buildTiles().toList(growable: false),
+        children: tilesBuilder.buildTiles(widget.offsetController.value).toList(growable: false),
       );
 }

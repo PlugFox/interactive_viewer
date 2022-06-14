@@ -12,6 +12,8 @@ class TilesBuilder {
   final pointController = StreamController<Point<int>>();
   final ThrottledOffsetController offsetController;
 
+  final offsetSc = StreamController<Offset>.broadcast();
+
   TilesBuilder({
     required this.mapProperties,
     required this.coordinateBuilder,
@@ -20,27 +22,32 @@ class TilesBuilder {
 
   void close() {
     pointController.close();
+    offsetSc.close();
   }
 
   /// top-left
-  Point<int> coordinate = const Point<int>(0, 0);
+  Point<int> coordinate(Offset cameraOffset) => Point(
+      -1 * (cameraOffset.dx + mapProperties.tileWidth - 1) ~/ mapProperties.tileWidth,
+      -1 * (cameraOffset.dy + mapProperties.tileHeight - 1) ~/ mapProperties.tileHeight);
 
   void rebuildPosition() {
-    final cameraOffset = offsetController.value;
-    final currentTopCoord = Point(-1 * (cameraOffset.dx + mapProperties.tileWidth - 1) ~/ mapProperties.tileWidth,
-        -1 * (cameraOffset.dy + mapProperties.tileHeight - 1) ~/ mapProperties.tileHeight);
-
-    if (coordinate != currentTopCoord) {
-      coordinate = currentTopCoord;
-    }
-
-    //return _storedWidgets;
+    offsetSc.add(offsetController.value);
   }
 
-  Iterable<Widget> buildTiles() sync* {
-    for (var x = 0; x < mapProperties.tilesOx; x++) {
-      for (var y = 0; y < mapProperties.tilesOy; y++) {
-        yield coordinateBuilder(x, y);
+  ///TODO: actually create streambuilder that triggers only when cells are really moved
+
+  Iterable<Widget> buildTiles(Offset cameraOffset) sync* {
+    for (var x = 0; x < mapProperties.tilesOxDisplayed; x++) {
+      for (var y = 0; y < mapProperties.tilesOyDisplayed; y++) {
+        yield StreamBuilder(
+          stream: offsetSc.stream,
+          builder: (context, state) {
+            final xTilesOffset = (cameraOffset.dx.toInt() - mapProperties.tileWidth + 1) ~/ mapProperties.tileWidth;
+            final yTilesOffset = cameraOffset.dy.toInt() ~/ mapProperties.tileHeight;
+
+            return coordinateBuilder(x + xTilesOffset, y + yTilesOffset);
+          },
+        );
       }
     }
   }

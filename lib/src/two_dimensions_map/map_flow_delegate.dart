@@ -18,29 +18,42 @@ class MapFlowDelegate extends FlowDelegate {
   @override
   void paintChildren(FlowPaintingContext context) {
     var i = 0;
-    final tilesCoordinate = tilesBuilder.coordinate;
 
-    final cellsOx = tilesBuilder.mapProperties.tilesOx;
-    final cellsOy = tilesBuilder.mapProperties.tilesOy;
+    final cellsOx = tilesBuilder.mapProperties.tilesOxDisplayed;
+    final cellsOy = tilesBuilder.mapProperties.tilesOyDisplayed;
+    final tileWidth = tilesBuilder.mapProperties.tileWidth;
+    final tileHeight = tilesBuilder.mapProperties.tileHeight;
+
+    // screen offset:
+    final offsetDx = (listenable.value.dx + tileWidth - 1) / tileWidth;
+    final screenOffOx = cellsOx - offsetDx;
+
+    final offsetDy = (listenable.value.dy + tileHeight - 1) / tileHeight;
+    final screenOffOy = cellsOy - offsetDy;
 
     for (var x = 0; x < cellsOx; x++) {
       for (var y = 0; y < cellsOy; y++) {
-        late Offset offset;
+        late double ox; //offset for x
+        late double oy; //offset for y
 
-        if (x >= (tilesCoordinate.x + tilesBuilder.mapProperties.tilesOx)) {
-          final newX = x - cellsOx;
-          final ox = newX * tilesBuilder.mapProperties.tileWidth;
-
-          offset = Offset(
-            ox,
-            y * tilesBuilder.mapProperties.tileHeight +
-                tilesBuilder.coordinate.y * tilesBuilder.mapProperties.tileHeight,
-          );
+        if (x > screenOffOx) {
+          ox = (x - cellsOx) * tileWidth;
         } else {
-          offset = Offset(
-            x * tilesBuilder.mapProperties.tileWidth,
-            y * tilesBuilder.mapProperties.tileHeight,
-          );
+          if (x < -offsetDx) {
+            ox = (x + cellsOx) * tileWidth;
+          } else {
+            ox = x * tileWidth;
+          }
+        }
+
+        if (y > screenOffOy) {
+          oy = (y - cellsOy) * tileHeight;
+        } else {
+          if (y < -offsetDy) {
+            oy = (y + cellsOy) * tileHeight;
+          } else {
+            oy = y * tileHeight;
+          }
         }
 
         // Отрисуем клетку #i
@@ -48,8 +61,8 @@ class MapFlowDelegate extends FlowDelegate {
           i,
           opacity: 1,
           transform: Matrix4.translationValues(
-            offset.dx + listenable.value.dx,
-            offset.dy + listenable.value.dy,
+            ox + listenable.value.dx,
+            oy + listenable.value.dy,
             0,
           ),
         );
