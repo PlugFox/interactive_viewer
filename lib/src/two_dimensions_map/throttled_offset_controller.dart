@@ -1,59 +1,88 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:game_board/src/two_dimensions_map/map_properties.dart';
 
 /// Контроллер отслеживающий отступ камеры для доски
-class ThrottledOffsetController extends ThrottledController<Offset> {
-  final double mapOxLength;
-  final double mapOyLength;
+class ThrottledOffsetController {
+  final ThrottledController renderController;
+  final ThrottledController fullMapController;
 
   ThrottledOffsetController({
     required Offset initialValue,
-    required this.mapOxLength,
-    required this.mapOyLength,
-  }) : super(
+    required MapProperties mapProperties,
+  })  : renderController = ThrottledController(
           initialValue: initialValue,
+          oxLength: mapProperties.tilesOxDisplayed * mapProperties.tileWidth,
+          oyLength: mapProperties.tilesOyDisplayed * mapProperties.tileHeight,
+          tileWidth: mapProperties.tileWidth,
+        ),
+        fullMapController = ThrottledController(
+          initialValue: initialValue,
+          oxLength: mapProperties.tilesOx * mapProperties.tileWidth,
+          oyLength: mapProperties.tilesOy * mapProperties.tileHeight,
+          tileWidth: mapProperties.tileWidth,
         );
 
   void translate(double x, double y) {
+    renderController.update(renderController.translateCircular(x, y));
+    fullMapController.update(fullMapController.translateCircular(x, y));
+  }
+}
+
+/// Value Notifier
+class ThrottledController with ChangeNotifier implements ValueListenable<Offset> {
+  final double oxLength;
+  final double oyLength;
+  final double tileWidth;
+
+  final double tileWidthHalf;
+
+  final Offset tilesOffset;
+  final Offset pixelOffset;
+
+  ThrottledController({
+    required Offset initialValue,
+    required this.oxLength,
+    required this.oyLength,
+    required this.tileWidth,
+    this.tilesOffset = const Offset(0, 0),
+  })  : _value = initialValue.translate(tilesOffset.dx * tileWidth, 0),
+        tileWidthHalf = 0, //tileWidth / 2,
+        pixelOffset = Offset(tilesOffset.dx * tileWidth, 0);
+
+  /// Обновляет текущее значение
+  bool update(Offset value) {
+    _value = value;
+    notifyListeners();
+    return true;
+  }
+
+  Offset translateCircular(double x, double y) {
     var newValue = value.translate(x, y);
 
-    if (newValue.dx > mapOxLength) {
-      newValue = newValue.translate(-mapOxLength, 0);
+    if (newValue.dx > (oxLength + tileWidthHalf - pixelOffset.dx)) {
+      newValue = newValue.translate(-oxLength, 0);
     }
-    if (newValue.dx < -mapOxLength) {
-      newValue = newValue.translate(mapOxLength, 0);
+    if (newValue.dx < (-oxLength - tileWidthHalf - pixelOffset.dx)) {
+      newValue = newValue.translate(oxLength, 0);
     }
-    if (newValue.dy > mapOyLength) {
-      newValue = newValue.translate(0, -mapOyLength);
+    if (newValue.dy > oyLength) {
+      newValue = newValue.translate(0, -oyLength);
     }
-    if (newValue.dy < -mapOyLength) {
-      newValue = newValue.translate(0, mapOyLength);
+    if (newValue.dy < -oyLength) {
+      newValue = newValue.translate(0, oyLength);
     }
 
-    update(newValue);
+    return newValue;
   }
 
   void reset({double dx = 0, double dy = 0}) {
     _value = Offset(dx, dy);
     notifyListeners();
   }
-}
-
-/// Value Notifier
-class ThrottledController<T extends Object> with ChangeNotifier implements ValueListenable<T> {
-  ThrottledController({
-    required T initialValue,
-  }) : _value = initialValue;
-
-  /// Обновляет текущее значение
-  bool update(T value) {
-    _value = value;
-    notifyListeners();
-    return true;
-  }
 
   @override
-  T get value => _value;
-  T _value;
+  Offset get value => _value;
+  Offset _value;
 }

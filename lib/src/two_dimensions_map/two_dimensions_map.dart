@@ -27,8 +27,7 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   late final fullMapOy = widget.mapProperties.tileHeight * widget.mapProperties.tilesOyDisplayed;
   late final _controller = ThrottledOffsetController(
     initialValue: const Offset(0, 0),
-    mapOxLength: fullMapOx,
-    mapOyLength: fullMapOy,
+    mapProperties: widget.mapProperties,
   );
 
   @override
@@ -71,7 +70,7 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
                       //maxLines: 2,
                       overflow: TextOverflow.clip,
                     ),
-                    valueListenable: _controller,
+                    valueListenable: _controller.fullMapController,
                   ),
                 ),
               ),

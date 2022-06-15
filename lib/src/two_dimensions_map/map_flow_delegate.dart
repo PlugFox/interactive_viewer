@@ -1,8 +1,10 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:game_board/src/two_dimensions_map/tiles_builder.dart';
 
-typedef CoordinateBuilder = Widget Function(int x, int y);
+typedef CoordinateBuilder = Widget Function(int x, int y, String? debug);
 
 class MapFlowDelegate extends FlowDelegate {
   final TilesBuilder tilesBuilder;
@@ -31,38 +33,19 @@ class MapFlowDelegate extends FlowDelegate {
     final offsetDy = (listenable.value.dy + tileHeight - 1) / tileHeight;
     final screenOffOy = cellsOy - offsetDy;
 
+    final pointsMapping = tilesBuilder.rebuildPosition();
+
     for (var x = 0; x < cellsOx; x++) {
       for (var y = 0; y < cellsOy; y++) {
-        late double ox; //offset for x
-        late double oy; //offset for y
-
-        if (x > screenOffOx) {
-          ox = (x - cellsOx) * tileWidth;
-        } else {
-          if (x < -offsetDx) {
-            ox = (x + cellsOx) * tileWidth;
-          } else {
-            ox = x * tileWidth;
-          }
-        }
-
-        if (y > screenOffOy) {
-          oy = (y - cellsOy) * tileHeight;
-        } else {
-          if (y < -offsetDy) {
-            oy = (y + cellsOy) * tileHeight;
-          } else {
-            oy = y * tileHeight;
-          }
-        }
+        final point = pointsMapping[Point(x, y)];
 
         // Отрисуем клетку #i
         context.paintChild(
           i,
           opacity: 1,
           transform: Matrix4.translationValues(
-            ox + listenable.value.dx,
-            oy + listenable.value.dy,
+            (point?.x ?? 0) * tileWidth + listenable.value.dx,
+            200, //(point?.y ?? 0) * tileHeight + listenable.value.dy,
             0,
           ),
         );

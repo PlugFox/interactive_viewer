@@ -33,7 +33,7 @@ class _MapLayoutState extends State<MapLayout> {
   void initState() {
     super.initState();
 
-    widget.offsetController.addListener(tilesBuilder.rebuildPosition);
+    //widget.offsetController.fullMapController.addListener(tilesBuilder.rebuildPosition);
   }
 
   @override
@@ -45,9 +45,9 @@ class _MapLayoutState extends State<MapLayout> {
   @override
   Widget build(BuildContext context) => Flow(
         delegate: MapFlowDelegate(
-          listenable: widget.offsetController,
+          listenable: widget.offsetController.renderController,
           tilesBuilder: tilesBuilder,
         ),
-        children: tilesBuilder.buildTiles(widget.offsetController.value).toList(growable: false),
+        children: tilesBuilder.buildTiles(widget.offsetController.renderController.value).toList(growable: false),
       );
 }

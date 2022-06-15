@@ -9,29 +9,197 @@ import 'package:game_board/src/two_dimensions_map/throttled_offset_controller.da
 class TilesBuilder {
   final MapProperties mapProperties;
   final CoordinateBuilder coordinateBuilder;
-  final pointController = StreamController<Point<int>>();
+  final pointController = StreamController<Point<int>>.broadcast();
   final ThrottledOffsetController offsetController;
 
-  final offsetSc = StreamController<Offset>.broadcast();
+  //
 
+  //
+  Map<Point<int>, Point<int>> pointMapping = {};
+  Map<Point<int>, Point<int>> pointMappingAdj = {};
+
+  Map<Point<int>, _PointWithInfo> pointFullMapping = {};
+  _PointerPosition _pointerPosition = _PointerPosition(0, 0);
+
+  int centerX = 0;
   TilesBuilder({
     required this.mapProperties,
     required this.coordinateBuilder,
     required this.offsetController,
-  });
+  }) {
+    centerX = mapProperties.tilesOxDisplayed ~/ 2;
+
+    _pointerPosition = _PointerPosition(0, mapProperties.tilesOxDisplayed);
+    for (var x = 0; x < mapProperties.tilesOxDisplayed; x++) {
+      for (var y = 0; y < mapProperties.tilesOyDisplayed; y++) {
+        pointMapping[Point(x, y)] = Point(x, y);
+        pointFullMapping[Point(x, y)] = _PointWithInfo(x, y, null);
+      }
+    }
+  }
 
   void close() {
     pointController.close();
-    offsetSc.close();
   }
 
-  /// top-left
-  Point<int> coordinate(Offset cameraOffset) => Point(
-      -1 * (cameraOffset.dx + mapProperties.tileWidth - 1) ~/ mapProperties.tileWidth,
-      -1 * (cameraOffset.dy + mapProperties.tileHeight - 1) ~/ mapProperties.tileHeight);
+  Offset _prevValue = const Offset(0, 0);
+  bool scrollRight = false;
+  bool scrollLeft = false;
+  bool localScrollRight = false;
+  bool localScrollLeft = false;
 
-  void rebuildPosition() {
-    offsetSc.add(offsetController.value);
+  Map<Point<int>, Point<int>> rebuildPosition() {
+    final cameraPosition = offsetController.renderController.value;
+
+    /*
+    if ((cameraPosition.dx - _lastTriggeredOffset.dx).abs() < (mapProperties.tileWidth / 2) &&
+        (cameraPosition.dy - _lastTriggeredOffset.dy).abs() < (mapProperties.tileHeight / 2)) {
+      return;
+    }
+
+     */
+    final lastDiff = Offset(cameraPosition.dx - _prevValue.dx, cameraPosition.dy - _prevValue.dy);
+
+    final cellsOx = mapProperties.tilesOxDisplayed;
+    final cellsOy = mapProperties.tilesOyDisplayed;
+    final tileWidth = mapProperties.tileWidth;
+    final tileHeight = mapProperties.tileHeight;
+
+    final offsetDx = (cameraPosition.dx + tileWidth - 1) / tileWidth;
+    var screenOffOx = cellsOx - offsetDx;
+    final offsetDy = (cameraPosition.dy + tileHeight - 1) / tileHeight;
+    final screenOffOy = cellsOy - offsetDy;
+
+    bool isFirst = true;
+
+    for (var x = 0; x < mapProperties.tilesOxDisplayed; x++) {
+      for (var y = 0; y < mapProperties.tilesOyDisplayed; y++) {
+        final thisPoint = Point(x, y);
+        var ox = x; //offset for x
+        var oy = y; //offset for y
+
+        if (ox > screenOffOx) {
+          ox = ox - cellsOx;
+        }
+        if (ox < -offsetDx) {
+          ox = ox + cellsOx;
+        }
+        if (ox > screenOffOx) {
+          ox = ox - cellsOx;
+        }
+        if (ox < -offsetDx) {
+          ox = ox + cellsOx;
+        }
+
+        if (y > screenOffOy) {
+          oy = y - cellsOy;
+        } else {
+          if (y < -offsetDy) {
+            oy = y + cellsOy;
+          } else {
+            oy = y;
+          }
+        }
+        //print('ox=$ox , oy=$oy');
+
+        final p = Point(ox, oy);
+        final prevPoint = pointMapping[thisPoint]; // for debug
+        final prevAdjPoint = pointMappingAdj[thisPoint];
+        final adjPoint = adjustRenderPoint(p, mapProperties.tilesOxDisplayed, mapProperties.tilesOyDisplayed);
+
+        final of = offsetController.fullMapController.value;
+        final adjPointWithInfo = _PointWithInfo(adjPoint.x, adjPoint.y, '${of.dx.toInt()},${of.dy.toInt()}');
+        final smallPartOx = mapProperties.tileWidth / 4;
+
+        if (p != prevPoint) {
+          pointMapping[thisPoint] = p;
+
+          final oDx = offsetController.fullMapController.value.dx;
+
+          if (lastDiff.dx.abs() > mapProperties.tileWidth) {
+            continue;
+          }
+
+          if (lastDiff.dx < 0) {
+            if (isFirst) {
+              _pointerPosition.takeRight();
+            }
+
+            final cameraX = -1 * (oDx + smallPartOx * oDx.sign) ~/ mapProperties.tileWidth;
+            final result = _pointerPosition.rightPos; //cameraX + mapProperties.tilesOxDisplayed - 1;
+
+            final adjFullPoint = adjustRenderPoint(Point(result, oy), mapProperties.tilesOx, mapProperties.tilesOy);
+            if (isFirst) {
+              isFirst = false;
+            }
+
+            pointFullMapping[thisPoint] = adjPointWithInfo;
+            pointController.add(thisPoint);
+            localScrollRight = true;
+            localScrollLeft = false;
+          } else {
+            if (isFirst) {
+              _pointerPosition.takeLeft();
+            }
+
+            final cameraX = -1 * (oDx) ~/ mapProperties.tileWidth;
+            var result = _pointerPosition.leftPos; //cameraX - 1;
+            if (scrollRight) {
+              localScrollRight = false;
+              //result += 1;
+            }
+
+            final adjFullPoint = adjustRenderPoint(Point(result, oy), mapProperties.tilesOx, mapProperties.tilesOy);
+
+            if (isFirst) {
+              isFirst = false;
+            }
+            //print('cameraX=$cameraX , adjPoint.x= ${adjPoint.x} , result=$result (${adjFullPoint.x}) (point: ${p.x})');
+            pointFullMapping[thisPoint] = adjPointWithInfo;
+            pointController.add(thisPoint);
+
+            localScrollLeft = true;
+          }
+        } else {
+          pointMapping[thisPoint] = p;
+        }
+
+        pointMappingAdj[thisPoint] = adjPoint;
+      }
+    }
+
+    scrollRight = localScrollRight;
+    scrollLeft = localScrollLeft;
+    _prevValue = offsetController.renderController.value;
+
+    return pointMapping;
+  }
+
+  Point<int> adjustRenderPoint(Point<int> point, int oxTiles, int oyTiles) {
+    var ox = point.x;
+    var oy = point.y;
+
+    while (ox >= oxTiles) {
+      ox -= oxTiles;
+    }
+
+    while (ox < 0) {
+      ox += oxTiles;
+    }
+
+    while (oy >= oyTiles) {
+      oy -= oyTiles;
+    }
+
+    while (oy < 0) {
+      oy += oyTiles;
+    }
+
+    return Point(ox, oy);
+  }
+
+  Point<int> getPointForCameraOffset(Offset camOffset, int x, int y) {
+    return Point(0, 0);
   }
 
   ///TODO: actually create streambuilder that triggers only when cells are really moved
@@ -40,15 +208,60 @@ class TilesBuilder {
     for (var x = 0; x < mapProperties.tilesOxDisplayed; x++) {
       for (var y = 0; y < mapProperties.tilesOyDisplayed; y++) {
         yield StreamBuilder(
-          stream: offsetSc.stream,
+          stream: pointController.stream.where((event) => event.x == x && event.y == y),
           builder: (context, state) {
-            final xTilesOffset = (cameraOffset.dx.toInt() - mapProperties.tileWidth + 1) ~/ mapProperties.tileWidth;
-            final yTilesOffset = cameraOffset.dy.toInt() ~/ mapProperties.tileHeight;
+            //final xTilesOffset = (cameraOffset.dx.toInt() - mapProperties.tileWidth + 1) ~/ mapProperties.tileWidth;
+            //final yTilesOffset = cameraOffset.dy.toInt() ~/ mapProperties.tileHeight;
 
-            return coordinateBuilder(x + xTilesOffset, y + yTilesOffset);
+            final fullOffset = offsetController.fullMapController.value;
+            final dx = (fullOffset.dx.abs() / mapProperties.tileWidth).ceil();
+            final dy = fullOffset.dy ~/ mapProperties.tileHeight;
+
+            final truePoint = pointFullMapping[Point(x, y)] ?? _PointWithInfo(-100, -100, '');
+            /*
+            final ox = truePoint.x >= mapProperties.tilesOxDisplayed
+                ? (truePoint.x - mapProperties.tilesOxDisplayed)
+                : truePoint.x;
+            final oy = truePoint.y >= mapProperties.tilesOyDisplayed
+                ? (truePoint.y - mapProperties.tilesOyDisplayed)
+                : truePoint.y;
+
+             */
+            return coordinateBuilder(truePoint.x, truePoint.y, truePoint.info);
           },
         );
       }
     }
+  }
+}
+
+class _PointWithInfo extends Point<int> {
+  final String? info;
+
+  _PointWithInfo(int x, int y, this.info) : super(x, y);
+}
+
+class _PointerPosition {
+  late int leftPos;
+  late int rightPos;
+
+  _PointerPosition(this.leftPos, int rightPos) {
+    this.rightPos = rightPos - 1;
+  }
+
+  int takeLeft() {
+    leftPos -= 1;
+    rightPos -= 1;
+
+    print('takeLeft: $leftPos');
+    return leftPos;
+  }
+
+  int takeRight() {
+    rightPos += 1;
+    leftPos += 1;
+
+    print('takeRight: $rightPos');
+    return rightPos;
   }
 }

@@ -18,10 +18,10 @@ class Home extends StatelessWidget {
   static const mapProperties = MapProperties(
     tileWidth: 100,
     tileHeight: 100,
-    tilesOx: 20,
-    tilesOy: 20,
-    tilesOxDisplayed: 10,
-    tilesOyDisplayed: 10,
+    tilesOx: 8,
+    tilesOy: 1,
+    tilesOxDisplayed: 6,
+    tilesOyDisplayed: 1,
   );
 
   @override
@@ -30,19 +30,22 @@ class Home extends StatelessWidget {
           child: TwoDimensionsMap(
             isDebug: true,
             mapProperties: mapProperties,
-            coordinateBuilder: (int x, int y) => TestWidget(
-              key: ValueKey('$x,$y'),
-              name: '[builder $x,$y]',
-              widget: Container(
-                color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
-                width: mapProperties.tileWidth,
-                height: mapProperties.tileHeight,
-                child: Center(
-                  child: Text(
+            coordinateBuilder: (int x, int y, String? debug) => Container(
+              color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
+              width: mapProperties.tileWidth,
+              height: mapProperties.tileHeight,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
                     '[$x;$y]',
                     style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
                   ),
-                ),
+                  Text(
+                    debug ?? '-',
+                    style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
+                  )
+                ],
               ),
             ),
           ),
