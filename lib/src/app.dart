@@ -18,10 +18,10 @@ class Home extends StatelessWidget {
   static const mapProperties = MapProperties(
     tileWidth: 100,
     tileHeight: 100,
-    tilesOx: 21,
-    tilesOy: 21,
-    tilesOxDisplayed: 11,
-    tilesOyDisplayed: 11,
+    tilesOx: 41,
+    tilesOy: 41,
+    tilesOxDisplayed: 12,
+    tilesOyDisplayed: 16,
     offsetOx: -200,
     offsetOy: -200,
   );

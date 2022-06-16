@@ -30,22 +30,46 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
     mapProperties: widget.mapProperties,
   );
 
+  double scale = 2.0;
+  Matrix4 matrix = Matrix4.identity();
+
+  @override
+  void initState() {
+    matrix[15] = 0.5;
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) => Stack(
         alignment: Alignment.center,
         children: <Widget>[
-          Positioned.fill(
-            child: Center(
-              child: GestureDetector(
-                onPanUpdate: (details) {
-                  _controller.translate(details.delta.dx, details.delta.dy);
-                },
-                child: LayoutBuilder(
-                  builder: (context, constraints) => MapLayout(
-                    offsetController: _controller,
-                    mapProperties: widget.mapProperties,
-                    coordinateBuilder: widget.coordinateBuilder,
-                  ),
+          Center(
+            child: GestureDetector(
+              onScaleUpdate: (scaleInfo) {
+                _controller.translate(scaleInfo.focalPointDelta.dx * scale, scaleInfo.focalPointDelta.dy * scale);
+
+                print('scaleInfo.scale: ${scaleInfo.scale}');
+                if (scaleInfo.scale != 1) {
+                  scale = scaleInfo.scale;
+                  if (scale < 0.5) {
+                    scale = 0.5;
+                  }
+
+                  setState(() {
+                    scale = 1 / (scale * 2);
+                    if (scale > 4) {
+                      scale = 4;
+                    }
+                    matrix[15] = scale;
+                  });
+                }
+              },
+              child: Transform(
+                transform: matrix,
+                child: MapLayout(
+                  offsetController: _controller,
+                  mapProperties: widget.mapProperties,
+                  coordinateBuilder: widget.coordinateBuilder,
                 ),
               ),
             ),
