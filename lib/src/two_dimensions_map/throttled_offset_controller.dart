@@ -41,6 +41,9 @@ class ThrottledController with ChangeNotifier implements ValueListenable<Offset>
   final Offset tilesOffset;
   final Offset pixelOffset;
 
+  int rotationsOx = 0;
+  int rotationsOy = 0;
+
   ThrottledController({
     required Offset initialValue,
     required this.oxLength,
@@ -63,15 +66,19 @@ class ThrottledController with ChangeNotifier implements ValueListenable<Offset>
 
     if (newValue.dx > (oxLength + tileWidthHalf - pixelOffset.dx)) {
       newValue = newValue.translate(-oxLength, 0);
+      rotationsOx--;
     }
     if (newValue.dx < (-oxLength - tileWidthHalf - pixelOffset.dx)) {
       newValue = newValue.translate(oxLength, 0);
+      rotationsOx++;
     }
     if (newValue.dy > oyLength) {
       newValue = newValue.translate(0, -oyLength);
+      rotationsOy--;
     }
     if (newValue.dy < -oyLength) {
       newValue = newValue.translate(0, oyLength);
+      rotationsOy++;
     }
 
     return newValue;

@@ -18,10 +18,12 @@ class Home extends StatelessWidget {
   static const mapProperties = MapProperties(
     tileWidth: 100,
     tileHeight: 100,
-    tilesOx: 8,
-    tilesOy: 1,
-    tilesOxDisplayed: 6,
-    tilesOyDisplayed: 1,
+    tilesOx: 21,
+    tilesOy: 21,
+    tilesOxDisplayed: 11,
+    tilesOyDisplayed: 11,
+    offsetOx: -200,
+    offsetOy: -200,
   );
 
   @override
@@ -31,7 +33,12 @@ class Home extends StatelessWidget {
             isDebug: true,
             mapProperties: mapProperties,
             coordinateBuilder: (int x, int y, String? debug) => Container(
-              color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
+              decoration: BoxDecoration(
+                  color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
+                  border: Border.all(
+                    width: 3,
+                    color: (x + y) % 2 == 1 ? Colors.black : Colors.white12,
+                  )),
               width: mapProperties.tileWidth,
               height: mapProperties.tileHeight,
               child: Column(

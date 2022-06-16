@@ -26,13 +26,6 @@ class MapFlowDelegate extends FlowDelegate {
     final tileWidth = tilesBuilder.mapProperties.tileWidth;
     final tileHeight = tilesBuilder.mapProperties.tileHeight;
 
-    // screen offset:
-    final offsetDx = (listenable.value.dx + tileWidth - 1) / tileWidth;
-    final screenOffOx = cellsOx - offsetDx;
-
-    final offsetDy = (listenable.value.dy + tileHeight - 1) / tileHeight;
-    final screenOffOy = cellsOy - offsetDy;
-
     final pointsMapping = tilesBuilder.rebuildPosition();
 
     for (var x = 0; x < cellsOx; x++) {
@@ -44,8 +37,8 @@ class MapFlowDelegate extends FlowDelegate {
           i,
           opacity: 1,
           transform: Matrix4.translationValues(
-            (point?.x ?? 0) * tileWidth + listenable.value.dx,
-            200, //(point?.y ?? 0) * tileHeight + listenable.value.dy,
+            (point?.x ?? 0) * tileWidth + listenable.value.dx + tilesBuilder.mapProperties.offsetOx,
+            (point?.y ?? 0) * tileHeight + listenable.value.dy + tilesBuilder.mapProperties.offsetOy,
             0,
           ),
         );
