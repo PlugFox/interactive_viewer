@@ -6,24 +6,22 @@ class App extends StatelessWidget {
   const App({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) => const MaterialApp(
+  Widget build(BuildContext context) => MaterialApp(
         title: 'Board',
         home: Home(),
       );
 }
 
 class Home extends StatelessWidget {
-  const Home({Key? key}) : super(key: key);
+  Home({Key? key}) : super(key: key);
 
-  static const mapProperties = MapProperties(
-    tileWidth: 100,
-    tileHeight: 100,
-    tilesOx: 41,
-    tilesOy: 41,
+  final mapProperties = MapProperties(
+    tileWidth: 64,
+    tileHeight: 64,
+    tilesOx: 40,
+    tilesOy: 40,
     tilesOxDisplayed: 12,
     tilesOyDisplayed: 16,
-    offsetOx: -200,
-    offsetOy: -200,
   );
 
   @override

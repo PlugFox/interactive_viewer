@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:game_board/src/two_dimensions_map/map_flow_delegate.dart';
 import 'package:game_board/src/two_dimensions_map/map_layout.dart';
 import 'package:game_board/src/two_dimensions_map/map_properties.dart';
+import 'package:game_board/src/two_dimensions_map/on_tap_processor.dart';
 import 'package:game_board/src/two_dimensions_map/throttled_offset_controller.dart';
 
 class TwoDimensionsMap extends StatefulWidget {
@@ -30,12 +31,16 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
     mapProperties: widget.mapProperties,
   );
 
-  double scale = 2.0;
+  late final _onTapProcessor = OnTapProcessor(
+    mapProperties: widget.mapProperties,
+    controller: _controller,
+  );
+
+  double get scale => _controller.scale;
   Matrix4 matrix = Matrix4.identity();
 
   @override
   void initState() {
-    matrix[15] = 0.5;
     super.initState();
   }
 
@@ -46,31 +51,42 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
           Center(
             child: GestureDetector(
               onScaleUpdate: (scaleInfo) {
-                _controller.translate(scaleInfo.focalPointDelta.dx * scale, scaleInfo.focalPointDelta.dy * scale);
+                _controller.translate(
+                    scaleInfo.focalPointDelta.dx * scale / 2, scaleInfo.focalPointDelta.dy * scale / 2);
 
-                print('scaleInfo.scale: ${scaleInfo.scale}');
+                print('scaleInfo.scale: ${scaleInfo.scale} / scale=$scale');
                 if (scaleInfo.scale != 1) {
-                  scale = scaleInfo.scale;
-                  if (scale < 0.5) {
-                    scale = 0.5;
+                  var _scale = scaleInfo.scale;
+                  if (_scale < 0.5) {
+                    _scale = 0.5;
+                  }
+                  if (_scale > 3) {
+                    _scale = 3;
                   }
 
-                  setState(() {
-                    scale = 1 / (scale * 2);
-                    if (scale > 4) {
-                      scale = 4;
-                    }
-                    matrix[15] = scale;
-                  });
+                  _scale = 1 / (_scale * 2);
+
+                  _controller.scale = _scale;
+                  _controller.zoomController.add(_scale);
                 }
               },
-              child: Transform(
-                transform: matrix,
-                child: MapLayout(
-                  offsetController: _controller,
-                  mapProperties: widget.mapProperties,
-                  coordinateBuilder: widget.coordinateBuilder,
-                ),
+              onTapDown: (details) {
+                final pointTaped = _onTapProcessor.getPointTapped(details.localPosition);
+              },
+              child: StreamBuilder(
+                stream: _controller.zoomController.stream,
+                builder: (BuildContext context, AsyncSnapshot<double> snapshot) {
+                  matrix[15] = snapshot.data ?? (1 / scale);
+
+                  return Transform(
+                    transform: matrix,
+                    child: MapLayout(
+                      offsetController: _controller,
+                      mapProperties: widget.mapProperties,
+                      coordinateBuilder: widget.coordinateBuilder,
+                    ),
+                  );
+                },
               ),
             ),
           ),

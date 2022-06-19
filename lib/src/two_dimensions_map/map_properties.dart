@@ -8,17 +8,28 @@ class MapProperties {
   final int tilesOxDisplayed;
   final int tilesOyDisplayed;
 
-  final double offsetOx;
-  final double offsetOy;
+  late final double offsetOx;
+  late final double offsetOy;
 
-  const MapProperties({
+  MapProperties({
     required this.tileWidth,
     required this.tileHeight,
     required this.tilesOx,
     required this.tilesOy,
     required this.tilesOxDisplayed,
     required this.tilesOyDisplayed,
-    this.offsetOx = 0,
-    this.offsetOy = 0,
-  });
+    double? offsetOx,
+    double? offsetOy,
+  }) {
+    if (offsetOx != null) {
+      this.offsetOx = offsetOx;
+    } else {
+      this.offsetOx = (tilesOxDisplayed * tileWidth * (-1)) / 4;
+    }
+    if (offsetOy != null) {
+      this.offsetOy = offsetOy;
+    } else {
+      this.offsetOy = (tilesOyDisplayed * tileHeight * (-1)) / 4;
+    }
+  }
 }
