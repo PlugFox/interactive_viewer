@@ -11,9 +11,12 @@ class TwoDimensionsMap extends StatefulWidget {
   const TwoDimensionsMap({
     required this.mapProperties,
     required this.coordinateBuilder,
+    this.forceCenterPointStream,
     Key? key,
     this.isDebug = false,
   }) : super(key: key);
+
+  final Stream<Point<int>>? forceCenterPointStream;
 
   final CoordinateBuilder coordinateBuilder;
   final MapProperties mapProperties;
@@ -29,6 +32,7 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   late final _controller = ThrottledOffsetController(
     initialValue: const Offset(0, 0),
     mapProperties: widget.mapProperties,
+    forceCenterPointStream: widget.forceCenterPointStream,
   );
 
   late final _onTapProcessor = OnTapProcessor(
@@ -42,6 +46,12 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.setScreenSize(MediaQuery.of(context).size);
   }
 
   @override

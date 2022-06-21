@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -8,13 +9,20 @@ import 'package:game_board/src/two_dimensions_map/map_properties.dart';
 class ThrottledOffsetController {
   final ThrottledController renderController;
   final ThrottledController fullMapController;
+  final MapProperties mapProperties;
+
+  Size? _screenSize;
+  Point<int> _lastCenterPoint = const Point(0, 0);
+  final Stream<Point<int>>? forceCenterPointStream;
+  late final StreamSubscription? _subCenterPoint;
 
   final zoomController = StreamController<double>.broadcast();
   double scale = 2;
 
   ThrottledOffsetController({
     required Offset initialValue,
-    required MapProperties mapProperties,
+    required this.mapProperties,
+    this.forceCenterPointStream,
   })  : renderController = ThrottledController(
           initialValue: initialValue,
           oxLength: mapProperties.tilesOxDisplayed * mapProperties.tileWidth,
@@ -26,7 +34,32 @@ class ThrottledOffsetController {
           oxLength: mapProperties.tilesOx * mapProperties.tileWidth,
           oyLength: mapProperties.tilesOy * mapProperties.tileHeight,
           tileWidth: mapProperties.tileWidth,
-        );
+        ) {
+    _subCenterPoint = forceCenterPointStream?.listen(_centerPointListener);
+  }
+
+  void setScreenSize(Size screenSize) {
+    _screenSize = screenSize;
+    _centerPointListener(_lastCenterPoint);
+  }
+
+  void _centerPointListener(Point<int> point) {
+    _lastCenterPoint = point;
+    if (_screenSize == null) {
+      return;
+    }
+    final requiredOffset = Offset(
+      -1 * point.x * mapProperties.tileWidth +
+          (_screenSize!.width / 2) -
+          fullMapController.value.dx -
+          (mapProperties.offsetOx / 4),
+      -1 * point.y * mapProperties.tileHeight +
+          (_screenSize!.height / 2) -
+          fullMapController.value.dy -
+          (mapProperties.offsetOy / 4),
+    );
+    translate(requiredOffset.dx, requiredOffset.dy);
+  }
 
   void translate(double x, double y) {
     renderController.update(renderController.translateCircular(x, y));
@@ -35,6 +68,7 @@ class ThrottledOffsetController {
 
   void close() {
     zoomController.close();
+    _subCenterPoint?.cancel();
   }
 }
 
