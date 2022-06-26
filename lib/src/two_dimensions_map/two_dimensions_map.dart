@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,8 @@ class TwoDimensionsMap extends StatefulWidget {
     this.forceCenterPointStream,
     Key? key,
     this.isDebug = false,
+    this.clickCallback,
+    this.zoomStream,
   }) : super(key: key);
 
   final Stream<Point<int>>? forceCenterPointStream;
@@ -22,6 +25,9 @@ class TwoDimensionsMap extends StatefulWidget {
   final MapProperties mapProperties;
   final bool isDebug;
 
+  final ClickCallback? clickCallback;
+  final Stream<double>? zoomStream;
+
   @override
   State<TwoDimensionsMap> createState() => _TwoDimensionsMapState();
 }
@@ -29,7 +35,7 @@ class TwoDimensionsMap extends StatefulWidget {
 class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   late final fullMapOx = widget.mapProperties.tileWidth * widget.mapProperties.tilesOxDisplayed;
   late final fullMapOy = widget.mapProperties.tileHeight * widget.mapProperties.tilesOyDisplayed;
-  late final _controller = ThrottledOffsetController(
+  late final _controller = MapController(
     initialValue: const Offset(0, 0),
     mapProperties: widget.mapProperties,
     forceCenterPointStream: widget.forceCenterPointStream,
@@ -43,15 +49,24 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   double get scale => _controller.scale;
   Matrix4 matrix = Matrix4.identity();
 
+  StreamSubscription? _zoomSub;
+
   @override
   void initState() {
     super.initState();
+    _zoomSub = widget.zoomStream?.listen(_controller.zoomController.add);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _controller.setScreenSize(MediaQuery.of(context).size);
+  }
+
+  @override
+  void dispose() {
+    _zoomSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -64,7 +79,6 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
                 _controller.translate(
                     scaleInfo.focalPointDelta.dx * scale / 2, scaleInfo.focalPointDelta.dy * scale / 2);
 
-                print('scaleInfo.scale: ${scaleInfo.scale} / scale=$scale');
                 if (scaleInfo.scale != 1) {
                   var _scale = scaleInfo.scale;
                   if (_scale < 0.5) {
@@ -81,7 +95,11 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
                 }
               },
               onTapDown: (details) {
+                if (widget.clickCallback == null) {
+                  return;
+                }
                 final pointTaped = _onTapProcessor.getPointTapped(details.localPosition);
+                widget.clickCallback!(pointTaped.x, pointTaped.y);
               },
               child: StreamBuilder(
                 stream: _controller.zoomController.stream,

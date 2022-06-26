@@ -10,7 +10,7 @@ class TilesBuilder {
   final MapProperties mapProperties;
   final CoordinateBuilder coordinateBuilder;
   final pointController = StreamController<Point<int>>.broadcast();
-  final ThrottledOffsetController offsetController;
+  final MapController offsetController;
 
   //
 

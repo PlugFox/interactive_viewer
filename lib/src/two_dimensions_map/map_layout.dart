@@ -16,7 +16,7 @@ class MapLayout extends StatefulWidget {
   final CoordinateBuilder coordinateBuilder;
 
   /// Контроллер положения камеры
-  final ThrottledOffsetController offsetController;
+  final MapController offsetController;
 
   @override
   State<MapLayout> createState() => _MapLayoutState();

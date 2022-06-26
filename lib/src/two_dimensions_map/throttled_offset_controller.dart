@@ -5,21 +5,24 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:game_board/src/two_dimensions_map/map_properties.dart';
 
+typedef ClickCallback = void Function(int x, int y);
+
 /// Контроллер отслеживающий отступ камеры для доски
-class ThrottledOffsetController {
+class MapController {
   final ThrottledController renderController;
   final ThrottledController fullMapController;
   final MapProperties mapProperties;
 
   Size? _screenSize;
   Point<int> _lastCenterPoint = const Point(0, 0);
+
   final Stream<Point<int>>? forceCenterPointStream;
   late final StreamSubscription? _subCenterPoint;
 
   final zoomController = StreamController<double>.broadcast();
   double scale = 2;
 
-  ThrottledOffsetController({
+  MapController({
     required Offset initialValue,
     required this.mapProperties,
     this.forceCenterPointStream,

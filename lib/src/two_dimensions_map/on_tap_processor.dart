@@ -6,7 +6,7 @@ import 'package:game_board/src/two_dimensions_map/throttled_offset_controller.da
 
 class OnTapProcessor {
   final MapProperties mapProperties;
-  final ThrottledOffsetController controller;
+  final MapController controller;
 
   late final double halfWidth;
   late final double halfHeight;
@@ -26,10 +26,21 @@ class OnTapProcessor {
       localPosition.dy * controller.scale - (mapProperties.offsetOy + controller.fullMapController.value.dy),
     );
 
-    final x = (gp.dx) ~/ mapProperties.tileWidth;
-    final y = (gp.dy) ~/ mapProperties.tileHeight;
+    var x = (gp.dx >= 0 ? gp.dx : (gp.dx - mapProperties.tileWidth)) ~/ mapProperties.tileWidth;
+    var y = (gp.dy >= 0 ? gp.dy : (gp.dy - mapProperties.tileHeight)) ~/ mapProperties.tileHeight;
 
-    print('getPointTapped ${gp.dx},${gp.dy} ([$x,$y])');
+    if (x < 0) {
+      x += mapProperties.tilesOx;
+    }
+    if (y < 0) {
+      y += mapProperties.tilesOy;
+    }
+    if (x >= mapProperties.tilesOx){
+      x -= mapProperties.tilesOx;
+    }
+    if (y >= mapProperties.tilesOy){
+      y -= mapProperties.tilesOy;
+    }
     return Point(x, y);
   }
 }
