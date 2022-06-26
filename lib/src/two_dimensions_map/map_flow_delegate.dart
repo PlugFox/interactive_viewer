@@ -37,8 +37,8 @@ class MapFlowDelegate extends FlowDelegate {
           i,
           opacity: 1,
           transform: Matrix4.translationValues(
-            (point?.x ?? 0) * tileWidth + listenable.value.dx + tilesBuilder.mapProperties.offsetOx,
-            (point?.y ?? 0) * tileHeight + listenable.value.dy + tilesBuilder.mapProperties.offsetOy,
+            (point?.x ?? 0) * (tileWidth - 1) + listenable.value.dx + tilesBuilder.mapProperties.offsetOx,
+            (point?.y ?? 0) * (tileHeight - 1) + listenable.value.dy + tilesBuilder.mapProperties.offsetOy,
             0,
           ),
         );

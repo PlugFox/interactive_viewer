@@ -166,35 +166,13 @@ class TilesBuilder {
     return Point(ox, oy);
   }
 
-  Point<int> getPointForCameraOffset(Offset camOffset, int x, int y) {
-    return Point(0, 0);
-  }
-
-  ///TODO: actually create streambuilder that triggers only when cells are really moved
-
   Iterable<Widget> buildTiles(Offset cameraOffset) sync* {
     for (var x = 0; x < mapProperties.tilesOxDisplayed; x++) {
       for (var y = 0; y < mapProperties.tilesOyDisplayed; y++) {
         yield StreamBuilder(
           stream: pointController.stream.where((event) => event.x == x && event.y == y),
           builder: (context, state) {
-            //final xTilesOffset = (cameraOffset.dx.toInt() - mapProperties.tileWidth + 1) ~/ mapProperties.tileWidth;
-            //final yTilesOffset = cameraOffset.dy.toInt() ~/ mapProperties.tileHeight;
-
-            final fullOffset = offsetController.fullMapController.value;
-            final dx = (fullOffset.dx.abs() / mapProperties.tileWidth).ceil();
-            final dy = fullOffset.dy ~/ mapProperties.tileHeight;
-
             final truePoint = pointFullMapping[Point(x, y)] ?? _PointWithInfo(-100, -100, '');
-            /*
-            final ox = truePoint.x >= mapProperties.tilesOxDisplayed
-                ? (truePoint.x - mapProperties.tilesOxDisplayed)
-                : truePoint.x;
-            final oy = truePoint.y >= mapProperties.tilesOyDisplayed
-                ? (truePoint.y - mapProperties.tilesOyDisplayed)
-                : truePoint.y;
-
-             */
             return coordinateBuilder(truePoint.x, truePoint.y, truePoint.info);
           },
         );
