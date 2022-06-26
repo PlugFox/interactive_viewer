@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:game_board/src/two_dimensions_map/map_controller.dart';
 import 'package:game_board/src/two_dimensions_map/map_properties.dart';
 import 'package:game_board/src/two_dimensions_map/two_dimensions_map.dart';
 
@@ -43,12 +44,23 @@ class _MapWrapperState extends State<MapWrapper> {
     tilesOxDisplayed: 12,
     tilesOyDisplayed: 16,
   );
+  late final MapControllerImpl _mapControllerImpl;
 
   @override
   void initState() {
     super.initState();
+    _mapControllerImpl = MapControllerImpl(
+      mapProperties: mapProperties,
+      screenSize: const Size(100, 100),
+    );
     centerSc.add(const Point(10, 10));
     Future<void>.delayed(const Duration(seconds: 2)).then((_) => centerSc.add(const Point(15, 15)));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _mapControllerImpl.setScreenSize(MediaQuery.of(context).size);
   }
 
   @override
@@ -60,8 +72,10 @@ class _MapWrapperState extends State<MapWrapper> {
   @override
   Widget build(BuildContext context) => TwoDimensionsMap(
         isDebug: true,
-        forceCenterPointStream: centerSc.stream,
-        mapProperties: mapProperties,
+        mapControllerImpl: _mapControllerImpl,
+        clickCallback: (x, y) {
+          print('point clicked: $x,$y');
+        },
         coordinateBuilder: (int x, int y, String? debug) => Container(
           decoration: BoxDecoration(
               color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,

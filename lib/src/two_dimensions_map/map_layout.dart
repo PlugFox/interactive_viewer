@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:game_board/src/two_dimensions_map/map_controller.dart';
 import 'package:game_board/src/two_dimensions_map/map_flow_delegate.dart';
 import 'package:game_board/src/two_dimensions_map/map_properties.dart';
-import 'package:game_board/src/two_dimensions_map/throttled_offset_controller.dart';
 import 'package:game_board/src/two_dimensions_map/tiles_builder.dart';
 
 class MapLayout extends StatefulWidget {
@@ -16,7 +16,7 @@ class MapLayout extends StatefulWidget {
   final CoordinateBuilder coordinateBuilder;
 
   /// Контроллер положения камеры
-  final MapController offsetController;
+  final MapControllerImpl offsetController;
 
   @override
   State<MapLayout> createState() => _MapLayoutState();

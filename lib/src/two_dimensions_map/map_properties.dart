@@ -11,6 +11,8 @@ class MapProperties {
   late final double offsetOx;
   late final double offsetOy;
 
+  final double maxZoomIn;
+
   MapProperties({
     required this.tileWidth,
     required this.tileHeight,
@@ -20,6 +22,7 @@ class MapProperties {
     required this.tilesOyDisplayed,
     double? offsetOx,
     double? offsetOy,
+    this.maxZoomIn = 4,
   }) {
     if (offsetOx != null) {
       this.offsetOx = offsetOx;

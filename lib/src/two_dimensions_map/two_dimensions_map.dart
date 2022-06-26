@@ -1,73 +1,74 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:game_board/src/two_dimensions_map/debouncer.dart';
+import 'package:game_board/src/two_dimensions_map/map_controller.dart';
+import 'package:game_board/src/two_dimensions_map/map_controller_event.dart';
 import 'package:game_board/src/two_dimensions_map/map_flow_delegate.dart';
 import 'package:game_board/src/two_dimensions_map/map_layout.dart';
-import 'package:game_board/src/two_dimensions_map/map_properties.dart';
 import 'package:game_board/src/two_dimensions_map/on_tap_processor.dart';
-import 'package:game_board/src/two_dimensions_map/throttled_offset_controller.dart';
+import 'package:game_board/src/two_dimensions_map/scale_animator.dart';
 
 class TwoDimensionsMap extends StatefulWidget {
   const TwoDimensionsMap({
-    required this.mapProperties,
+    required this.mapControllerImpl,
     required this.coordinateBuilder,
-    this.forceCenterPointStream,
     Key? key,
     this.isDebug = false,
     this.clickCallback,
-    this.zoomStream,
   }) : super(key: key);
 
-  final Stream<Point<int>>? forceCenterPointStream;
-
   final CoordinateBuilder coordinateBuilder;
-  final MapProperties mapProperties;
+  final MapControllerImpl mapControllerImpl;
   final bool isDebug;
 
   final ClickCallback? clickCallback;
-  final Stream<double>? zoomStream;
 
   @override
   State<TwoDimensionsMap> createState() => _TwoDimensionsMapState();
 }
 
 class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
-  late final fullMapOx = widget.mapProperties.tileWidth * widget.mapProperties.tilesOxDisplayed;
-  late final fullMapOy = widget.mapProperties.tileHeight * widget.mapProperties.tilesOyDisplayed;
-  late final _controller = MapController(
-    initialValue: const Offset(0, 0),
-    mapProperties: widget.mapProperties,
-    forceCenterPointStream: widget.forceCenterPointStream,
-  );
+  late final fullMapOx =
+      widget.mapControllerImpl.mapProperties.tileWidth * widget.mapControllerImpl.mapProperties.tilesOxDisplayed;
+  late final fullMapOy =
+      widget.mapControllerImpl.mapProperties.tileHeight * widget.mapControllerImpl.mapProperties.tilesOyDisplayed;
 
   late final _onTapProcessor = OnTapProcessor(
-    mapProperties: widget.mapProperties,
-    controller: _controller,
+    mapProperties: widget.mapControllerImpl.mapProperties,
+    controller: widget.mapControllerImpl,
   );
 
-  double get scale => _controller.scale;
+  double get scale => widget.mapControllerImpl.zoom;
   Matrix4 matrix = Matrix4.identity();
-
-  StreamSubscription? _zoomSub;
 
   @override
   void initState() {
     super.initState();
-    _zoomSub = widget.zoomStream?.listen(_controller.zoomController.add);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _controller.setScreenSize(MediaQuery.of(context).size);
+    widget.mapControllerImpl.setScreenSize(MediaQuery.of(context).size);
   }
 
   @override
   void dispose() {
-    _zoomSub?.cancel();
     super.dispose();
   }
+
+  final debouncer = Debouncer(delayMs: 100);
+  double _localZoom = 2;
+  void zoom(double scale) {
+    debouncer.run(() {
+      print('_localZoom: $_localZoom');
+      widget.mapControllerImpl.addEvent(MapControllerEvent.zoom(scale: _localZoom));
+    });
+  }
+
+  bool _scaleLocked = false;
+  TapDownDetails? lastDetails;
 
   @override
   Widget build(BuildContext context) => Stack(
@@ -76,45 +77,50 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
           Center(
             child: GestureDetector(
               onScaleUpdate: (scaleInfo) {
-                _controller.translate(
-                    scaleInfo.focalPointDelta.dx * scale / 2, scaleInfo.focalPointDelta.dy * scale / 2);
+                _scaleLocked = true;
+                widget.mapControllerImpl
+                    .translate(scaleInfo.focalPointDelta.dx / (2 * scale), scaleInfo.focalPointDelta.dy / (2 * scale));
 
                 if (scaleInfo.scale != 1) {
-                  var _scale = scaleInfo.scale;
-                  if (_scale < 0.5) {
-                    _scale = 0.5;
+                  if (scaleInfo.scale > 1) {
+                    _localZoom += 0.01;
+                    if (_localZoom > widget.mapControllerImpl.mapProperties.maxZoomIn) {
+                      _localZoom = widget.mapControllerImpl.mapProperties.maxZoomIn;
+                    }
+                    zoom(widget.mapControllerImpl.zoom + 0.25);
+                  } else {
+                    _localZoom -= 0.01;
+                    if (_localZoom < 1) {
+                      _localZoom = 1;
+                    }
+                    zoom(widget.mapControllerImpl.zoom - 0.2);
                   }
-                  if (_scale > 3) {
-                    _scale = 3;
-                  }
-
-                  _scale = 1 / (_scale * 2);
-
-                  _controller.scale = _scale;
-                  _controller.zoomController.add(_scale);
                 }
+                _scaleLocked = false;
               },
-              onTapDown: (details) {
-                if (widget.clickCallback == null) {
+              onTap: () {
+                if (_scaleLocked || widget.clickCallback == null || lastDetails == null) {
                   return;
                 }
-                final pointTaped = _onTapProcessor.getPointTapped(details.localPosition);
+                final pointTaped = _onTapProcessor.getPointTapped(lastDetails!.localPosition);
                 widget.clickCallback!(pointTaped.x, pointTaped.y);
               },
-              child: StreamBuilder(
-                stream: _controller.zoomController.stream,
-                builder: (BuildContext context, AsyncSnapshot<double> snapshot) {
-                  matrix[15] = snapshot.data ?? (1 / scale);
-
-                  return Transform(
-                    transform: matrix,
-                    child: MapLayout(
-                      offsetController: _controller,
-                      mapProperties: widget.mapProperties,
-                      coordinateBuilder: widget.coordinateBuilder,
-                    ),
-                  );
+              onTapDown: (details) {
+                lastDetails = details;
+              },
+              child: ScaleAnimator(
+                maxZoomIn: widget.mapControllerImpl.mapProperties.maxZoomIn,
+                animateToStream: widget.mapControllerImpl.mapStateStream
+                    .where((e) => e.whatChanged == MapEventType.setZoom)
+                    .map((s) => s.zoom),
+                scaleCallbackFunc: (scale) {
+                  widget.mapControllerImpl.zoom = scale;
                 },
+                child: MapLayout(
+                  offsetController: widget.mapControllerImpl,
+                  mapProperties: widget.mapControllerImpl.mapProperties,
+                  coordinateBuilder: widget.coordinateBuilder,
+                ),
               ),
             ),
           ),
@@ -138,7 +144,7 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
                       //maxLines: 2,
                       overflow: TextOverflow.clip,
                     ),
-                    valueListenable: _controller.fullMapController,
+                    valueListenable: widget.mapControllerImpl.fullMapController,
                   ),
                 ),
               ),

@@ -2,15 +2,15 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:game_board/src/two_dimensions_map/map_controller.dart';
 import 'package:game_board/src/two_dimensions_map/map_flow_delegate.dart';
 import 'package:game_board/src/two_dimensions_map/map_properties.dart';
-import 'package:game_board/src/two_dimensions_map/throttled_offset_controller.dart';
 
 class TilesBuilder {
   final MapProperties mapProperties;
   final CoordinateBuilder coordinateBuilder;
   final pointController = StreamController<Point<int>>.broadcast();
-  final MapController offsetController;
+  final MapControllerImpl offsetController;
 
   //
 
