@@ -41,10 +41,9 @@ class _ScaleAnimatorState extends State<ScaleAnimator> with TickerProviderStateM
     super.initState();
     sub = widget.animateToStream.listen((e) {
       final animateToValue = e / widget.maxZoomIn;
-      print('animateToStream: animateToValue= $animateToValue');
       _controller.animateTo(animateToValue);
     });
-    _controller.animateTo(1);
+    _controller.animateTo(1 / widget.maxZoomIn);
     _animation.addListener(_handleAnimation);
   }
 
@@ -61,7 +60,6 @@ class _ScaleAnimatorState extends State<ScaleAnimator> with TickerProviderStateM
       final scale = _animation.value * widget.maxZoomIn;
       adjScale = scale < 1.0 ? 1.0 : scale;
       widget.scaleCallbackFunc(adjScale);
-      print('_handleAnimation scale: $adjScale');
     });
   }
 

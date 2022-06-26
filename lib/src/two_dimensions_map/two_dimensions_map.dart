@@ -62,13 +62,14 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   double _localZoom = 2;
   void zoom(double scale) {
     debouncer.run(() {
-      print('_localZoom: $_localZoom');
       widget.mapControllerImpl.addEvent(MapControllerEvent.zoom(scale: _localZoom));
     });
   }
 
   bool _scaleLocked = false;
   TapDownDetails? lastDetails;
+
+  double roundedZoom = 1;
 
   @override
   Widget build(BuildContext context) => Stack(
@@ -78,8 +79,9 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
             child: GestureDetector(
               onScaleUpdate: (scaleInfo) {
                 _scaleLocked = true;
+
                 widget.mapControllerImpl
-                    .translate(scaleInfo.focalPointDelta.dx / (2 * scale), scaleInfo.focalPointDelta.dy / (2 * scale));
+                    .translate(scaleInfo.focalPointDelta.dx / roundedZoom, scaleInfo.focalPointDelta.dy / roundedZoom);
 
                 if (scaleInfo.scale != 1) {
                   if (scaleInfo.scale > 1) {
@@ -115,6 +117,12 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
                     .map((s) => s.zoom),
                 scaleCallbackFunc: (scale) {
                   widget.mapControllerImpl.zoom = scale;
+                  if (scale >= 2 && scale <= 3) {
+                    roundedZoom = 2;
+                  }
+                  if (scale > 3) {
+                    roundedZoom = 4;
+                  }
                 },
                 child: MapLayout(
                   offsetController: widget.mapControllerImpl,

@@ -30,7 +30,7 @@ class MapControllerImpl implements MapController {
   final _mapEventController = StreamController<MapControllerEvent>();
   late final StreamSubscription? _subCenterPoint;
 
-  double zoom = 2;
+  double zoom = 1;
 
   MapControllerImpl({
     required this.mapProperties,

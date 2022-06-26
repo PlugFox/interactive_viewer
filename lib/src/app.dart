@@ -42,7 +42,7 @@ class _MapWrapperState extends State<MapWrapper> {
     tilesOx: 40,
     tilesOy: 40,
     tilesOxDisplayed: 12,
-    tilesOyDisplayed: 16,
+    tilesOyDisplayed: 18,
   );
   late final MapControllerImpl _mapControllerImpl;
 
