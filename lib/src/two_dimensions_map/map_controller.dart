@@ -3,6 +3,8 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:game_board/src/two_dimensions_map/debouncer.dart';
 import 'package:game_board/src/two_dimensions_map/map_controller_event.dart';
 import 'package:game_board/src/two_dimensions_map/map_controller_state.dart';
 import 'package:game_board/src/two_dimensions_map/map_properties.dart';
@@ -13,6 +15,8 @@ abstract class MapController {
   void centerToPoint(Point<int> point);
 
   void addEvent(MapControllerEvent event);
+
+  void initOffsetAnimations({required TickerProvider tickerProvider});
 }
 
 /// Контроллер отслеживающий отступ камеры для доски
@@ -29,6 +33,72 @@ class MapControllerImpl implements MapController {
   final _mapStateController = StreamController<MapControllerState>.broadcast();
   final _mapEventController = StreamController<MapControllerEvent>();
   late final StreamSubscription? _subCenterPoint;
+
+  /// Animations:
+  bool _animationsInitted = false;
+  static const int msAnimation = 1000;
+  final throttler = Throttler(delayMs: 50);
+  Animation<Offset>? animation;
+  late AnimationController _animationController;
+
+  @override
+  void initOffsetAnimations({required TickerProvider tickerProvider}) {
+    if (_animationsInitted) {
+      return;
+    }
+    _animationsInitted = true;
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: msAnimation),
+      vsync: tickerProvider,
+    );
+  }
+
+  void _listenAnimationLocation() {
+    if (animation == null) {
+      return;
+    }
+    _internalTranslate(animation!.value.dx, animation!.value.dy);
+    if (animation?.isCompleted ?? false) {
+      _storedOffset = const Offset(0, 0);
+    }
+  }
+
+  var _renderControllerLast = const Offset(0, 0);
+  var _fullMapControllerLast = const Offset(0, 0);
+
+  void _internalTranslate(double x, double y) {
+    renderController.update(renderController.translateCircular(
+      _renderControllerLast.translate(x, y),
+    ));
+    fullMapController.update(fullMapController.translateCircular(
+      _fullMapControllerLast.translate(x, y),
+    ));
+  }
+
+  var _storedOffset = const Offset(0, 0);
+  static const int _scrollLimit = 400;
+  void translate(double x, double y) {
+    if (_animationsInitted) {
+      _storedOffset = Offset(_storedOffset.dx + x, _storedOffset.dy + y);
+      throttler.run(() {
+        if (!(animation?.isCompleted ?? false) && ((_storedOffset.dx.abs() + _storedOffset.dy.abs()) > _scrollLimit)) {
+          _storedOffset = Offset(_storedOffset.dx / 2, _storedOffset.dy / 2);
+        }
+        animation?.removeListener(_listenAnimationLocation);
+        _animationController.reset();
+        _renderControllerLast = renderController.value;
+        _fullMapControllerLast = fullMapController.value;
+        final tween = Tween<Offset>(begin: const Offset(0, 0), end: _storedOffset);
+        animation = tween.animate(CurvedAnimation(parent: _animationController, curve: Curves.decelerate));
+        animation?.addListener(_listenAnimationLocation);
+        _animationController.forward();
+      });
+    } else {
+      _internalTranslate(x, y);
+    }
+  }
+
+  ///
 
   double zoom = 1;
 
@@ -89,11 +159,6 @@ class MapControllerImpl implements MapController {
     }
   }
 
-  void translate(double x, double y) {
-    renderController.update(renderController.translateCircular(x, y));
-    fullMapController.update(fullMapController.translateCircular(x, y));
-  }
-
   void close() {
     _subCenterPoint?.cancel();
     _mapEventController.close();
@@ -152,8 +217,8 @@ class ThrottledController with ChangeNotifier implements ValueListenable<Offset>
     return true;
   }
 
-  Offset translateCircular(double x, double y) {
-    var newValue = value.translate(x, y);
+  Offset translateCircular(Offset offset) {
+    var newValue = offset;
 
     if (newValue.dx > (oxLength + tileWidthHalf - pixelOffset.dx)) {
       newValue = newValue.translate(-oxLength, 0);

@@ -10,6 +10,7 @@ class TilesBuilder {
   final MapProperties mapProperties;
   final CoordinateBuilder coordinateBuilder;
   final pointController = StreamController<Point<int>>.broadcast();
+
   final MapControllerImpl offsetController;
 
   //
@@ -35,7 +36,7 @@ class TilesBuilder {
         pointFullMapping[Point(x, y)] = _PointWithInfo(x, y, null);
       }
     }
-    rebuildPosition();
+    fullRebuildPosition();
   }
 
   void close() {
@@ -44,7 +45,7 @@ class TilesBuilder {
 
   Offset _prevValue = const Offset(0, 0);
 
-  Map<Point<int>, Point<int>> rebuildPosition() {
+  Map<Point<int>, Point<int>> fullRebuildPosition() {
     final cameraPosition = offsetController.renderController.value;
     final cellsOx = mapProperties.tilesOxDisplayed;
     final cellsOy = mapProperties.tilesOyDisplayed;
@@ -78,19 +79,6 @@ class TilesBuilder {
     var screenOffOx = cellsOx - offsetDx;
     final offsetDy = (cameraPosition.dy + tileHeight - 1) / tileHeight;
     final screenOffOy = cellsOy - offsetDy;
-
-    ///
-    //final oDx = offsetController.fullMapController.value.dx;
-    //final of = offsetController.fullMapController.value;
-    //final smallPartOx = mapProperties.tileWidth / 4;
-    //final leftOx = (-1 * of.dx) ~/ mapProperties.tileWidth;
-    //final currentRotationOx = (-1 * of.dx) ~/ (mapProperties.tilesOxDisplayed * mapProperties.tileWidth);
-
-    //final p = Point(leftOx, 0);
-    //final leftOxBase = adjustRenderPoint(p, mapProperties.tilesOxDisplayed, mapProperties.tilesOyDisplayed);
-    //print('leftOx= / rotationsOx=$rotationsOx / leftOxBase=');
-
-    ///
 
     for (var x = 0; x < mapProperties.tilesOxDisplayed; x++) {
       for (var y = 0; y < mapProperties.tilesOyDisplayed; y++) {
@@ -129,12 +117,14 @@ class TilesBuilder {
 
         final adjFullPoint = adjustRenderPoint(Point(oxResult, oyResult), mapProperties.tilesOx, mapProperties.tilesOy);
 
-        pointFullMapping[thisPoint] = _PointWithInfo(
-          adjFullPoint.x,
-          adjFullPoint.y,
-          '',
-        );
-        pointController.add(thisPoint);
+        if (adjFullPoint != pointFullMapping[thisPoint]) {
+          pointFullMapping[thisPoint] = _PointWithInfo(
+            adjFullPoint.x,
+            adjFullPoint.y,
+            '$x,$y',
+          );
+          pointController.add(thisPoint);
+        }
 
         pointMappingAdj[thisPoint] = adjPoint;
       }

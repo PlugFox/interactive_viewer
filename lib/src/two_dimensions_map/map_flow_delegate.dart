@@ -26,7 +26,7 @@ class MapFlowDelegate extends FlowDelegate {
     final tileWidth = tilesBuilder.mapProperties.tileWidth;
     final tileHeight = tilesBuilder.mapProperties.tileHeight;
 
-    final pointsMapping = tilesBuilder.rebuildPosition();
+    final pointsMapping = tilesBuilder.fullRebuildPosition();
 
     for (var x = 0; x < cellsOx; x++) {
       for (var y = 0; y < cellsOy; y++) {

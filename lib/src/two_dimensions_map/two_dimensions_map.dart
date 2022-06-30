@@ -28,7 +28,7 @@ class TwoDimensionsMap extends StatefulWidget {
   State<TwoDimensionsMap> createState() => _TwoDimensionsMapState();
 }
 
-class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
+class _TwoDimensionsMapState extends State<TwoDimensionsMap> with SingleTickerProviderStateMixin {
   late final fullMapOx =
       widget.mapControllerImpl.mapProperties.tileWidth * widget.mapControllerImpl.mapProperties.tilesOxDisplayed;
   late final fullMapOy =
@@ -45,6 +45,7 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   @override
   void initState() {
     super.initState();
+    widget.mapControllerImpl.initOffsetAnimations(tickerProvider: this);
   }
 
   @override
@@ -75,41 +76,42 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
   Widget build(BuildContext context) => Stack(
         alignment: Alignment.center,
         children: <Widget>[
-          Center(
-            child: GestureDetector(
-              onScaleUpdate: (scaleInfo) {
-                _scaleLocked = true;
+          GestureDetector(
+            onScaleUpdate: (scaleInfo) {
+              _scaleLocked = true;
 
-                widget.mapControllerImpl
-                    .translate(scaleInfo.focalPointDelta.dx / roundedZoom, scaleInfo.focalPointDelta.dy / roundedZoom);
+              widget.mapControllerImpl
+                  .translate(scaleInfo.focalPointDelta.dx / roundedZoom, scaleInfo.focalPointDelta.dy / roundedZoom);
 
-                if (scaleInfo.scale != 1) {
-                  if (scaleInfo.scale > 1) {
-                    _localZoom += 0.01;
-                    if (_localZoom > widget.mapControllerImpl.mapProperties.maxZoomIn) {
-                      _localZoom = widget.mapControllerImpl.mapProperties.maxZoomIn;
-                    }
-                    zoom(widget.mapControllerImpl.zoom + 0.25);
-                  } else {
-                    _localZoom -= 0.01;
-                    if (_localZoom < 1) {
-                      _localZoom = 1;
-                    }
-                    zoom(widget.mapControllerImpl.zoom - 0.2);
+              if (scaleInfo.scale != 1) {
+                if (scaleInfo.scale > 1) {
+                  _localZoom += 0.01;
+                  if (_localZoom > widget.mapControllerImpl.mapProperties.maxZoomIn) {
+                    _localZoom = widget.mapControllerImpl.mapProperties.maxZoomIn;
                   }
+                  zoom(widget.mapControllerImpl.zoom + 0.25);
+                } else {
+                  _localZoom -= 0.01;
+                  if (_localZoom < 1) {
+                    _localZoom = 1;
+                  }
+                  zoom(widget.mapControllerImpl.zoom - 0.2);
                 }
-                _scaleLocked = false;
-              },
-              onTap: () {
-                if (_scaleLocked || widget.clickCallback == null || lastDetails == null) {
-                  return;
-                }
-                final pointTaped = _onTapProcessor.getPointTapped(lastDetails!.localPosition);
-                widget.clickCallback!(pointTaped.x, pointTaped.y);
-              },
-              onTapDown: (details) {
-                lastDetails = details;
-              },
+              }
+              _scaleLocked = false;
+            },
+            onTap: () {
+              if (_scaleLocked || widget.clickCallback == null || lastDetails == null) {
+                return;
+              }
+              final pointTaped = _onTapProcessor.getPointTapped(lastDetails!.localPosition);
+              widget.clickCallback!(pointTaped.x, pointTaped.y);
+            },
+            onTapDown: (details) {
+              lastDetails = details;
+            },
+            child: ClipRect(
+              clipper: RectCustomClipper(),
               child: ScaleAnimator(
                 maxZoomIn: widget.mapControllerImpl.mapProperties.maxZoomIn,
                 animateToStream: widget.mapControllerImpl.mapStateStream
@@ -159,4 +161,12 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> {
             ),
         ],
       );
+}
+
+class RectCustomClipper extends CustomClipper<Rect> {
+  @override
+  Rect getClip(Size size) => Rect.fromLTWH(0, 0, size.width, size.height);
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) => oldClipper != this;
 }

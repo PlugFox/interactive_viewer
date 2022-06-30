@@ -44,6 +44,7 @@ class _MapLayoutState extends State<MapLayout> {
 
   @override
   Widget build(BuildContext context) => Flow(
+        clipBehavior: Clip.hardEdge,
         delegate: MapFlowDelegate(
           listenable: widget.offsetController.renderController,
           tilesBuilder: tilesBuilder,

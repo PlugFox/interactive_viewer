@@ -56,17 +56,19 @@ class _ScaleAnimatorState extends State<ScaleAnimator> with TickerProviderStateM
 
   double adjScale = 1;
   void _handleAnimation() {
-    setState(() {
-      final scale = _animation.value * widget.maxZoomIn;
-      adjScale = scale < 1.0 ? 1.0 : scale;
-      widget.scaleCallbackFunc(adjScale);
-    });
+    final scale = _animation.value * widget.maxZoomIn;
+    adjScale = scale < 1.0 ? 1.0 : scale;
+    widget.scaleCallbackFunc(adjScale);
   }
 
   @override
-  Widget build(BuildContext context) => Transform.scale(
-        alignment: Alignment.center,
-        scale: adjScale,
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _controller,
+        builder: (BuildContext _, Widget? child) => Transform.scale(
+          alignment: Alignment.center,
+          scale: adjScale,
+          child: child,
+        ),
         child: widget.child,
       );
 }
