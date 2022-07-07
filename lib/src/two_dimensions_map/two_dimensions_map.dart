@@ -137,7 +137,7 @@ class _TwoDimensionsMapState extends State<TwoDimensionsMap> with SingleTickerPr
           if (widget.isDebug)
             Positioned(
               width: min(200, MediaQuery.of(context).size.width),
-              bottom: 5,
+              bottom: 150,
               height: 40,
               child: ColoredBox(
                 color: const Color(0xFF000000),

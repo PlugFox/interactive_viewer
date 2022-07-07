@@ -36,6 +36,7 @@ class MapWrapper extends StatefulWidget {
 
 class _MapWrapperState extends State<MapWrapper> {
   final centerSc = StreamController<Point<int>>();
+  /*
   final mapProperties = MapProperties(
     tileWidth: 64,
     tileHeight: 64,
@@ -44,7 +45,19 @@ class _MapWrapperState extends State<MapWrapper> {
     tilesOxDisplayed: 12,
     tilesOyDisplayed: 18,
   );
+
+   */
+  final mapProperties = MapProperties(
+    tileWidth: 60,
+    tileHeight: 60,
+    tilesOx: 20,
+    tilesOy: 20,
+    tilesOxDisplayed: 13,
+    tilesOyDisplayed: 26,
+  );
   late final MapControllerImpl _mapControllerImpl;
+
+  StreamSubscription? sub;
 
   @override
   void initState() {
@@ -52,9 +65,11 @@ class _MapWrapperState extends State<MapWrapper> {
     _mapControllerImpl = MapControllerImpl(
       mapProperties: mapProperties,
       screenSize: const Size(100, 100),
+      centerPoint: const Point(11, 17),
     );
-    centerSc.add(const Point(10, 10));
-    Future<void>.delayed(const Duration(seconds: 2)).then((_) => centerSc.add(const Point(15, 15)));
+
+    //sub = Stream<void>.periodic(const Duration(seconds: 5)).listen((event) => _mapControllerImpl.centerToPoint(const Point(3, 0)));
+    //sub = Stream<void>.periodic(const Duration(seconds: 5)).listen((event) => _mapControllerImpl.jumpToPoint(const Point(3, 0)));
   }
 
   @override
@@ -66,6 +81,7 @@ class _MapWrapperState extends State<MapWrapper> {
   @override
   void dispose() {
     centerSc.close();
+    sub?.cancel();
     super.dispose();
   }
 

@@ -17,6 +17,8 @@ abstract class MapController {
   void addEvent(MapControllerEvent event);
 
   void initOffsetAnimations({required TickerProvider tickerProvider});
+
+  void close();
 }
 
 /// Контроллер отслеживающий отступ камеры для доски
@@ -36,7 +38,7 @@ class MapControllerImpl implements MapController {
 
   /// Animations:
   bool _animationsInitted = false;
-  static const int msAnimation = 1000;
+  static const int msAnimation = 500;
   final throttler = Throttler(delayMs: 50);
   Animation<Offset>? animation;
   late AnimationController _animationController;
@@ -63,39 +65,64 @@ class MapControllerImpl implements MapController {
     }
   }
 
-  var _renderControllerLast = const Offset(0, 0);
-  var _fullMapControllerLast = const Offset(0, 0);
-
+  double _dxLast = 0;
+  double _dyLast = 0;
   void _internalTranslate(double x, double y) {
+    final xDiff = x - _dxLast;
+    final yDiff = y - _dyLast;
+
     renderController.update(renderController.translateCircular(
-      _renderControllerLast.translate(x, y),
+      renderController.value.translate(xDiff, yDiff),
     ));
     fullMapController.update(fullMapController.translateCircular(
-      _fullMapControllerLast.translate(x, y),
+      fullMapController.value.translate(xDiff, yDiff),
     ));
+    if (_animationsInitted) {
+      _dxLast = x;
+      _dyLast = y;
+    }
   }
 
+  bool _statusListenerAdded = false;
   var _storedOffset = const Offset(0, 0);
   static const int _scrollLimit = 400;
   void translate(double x, double y) {
+    if (_animationController.isAnimating && _animationLocked) {
+      return;
+    }
+    _animationLocked = false;
     if (_animationsInitted) {
-      _storedOffset = Offset(_storedOffset.dx + x, _storedOffset.dy + y);
+      _animationController.duration = const Duration(milliseconds: msAnimation);
+      final newX = (x.sign == _storedOffset.dx.sign) ? _storedOffset.dx + x : x;
+      final newY = (y.sign == _storedOffset.dy.sign) ? _storedOffset.dy + y : y;
+      _storedOffset = Offset(newX, newY);
       throttler.run(() {
         if (!(animation?.isCompleted ?? false) && ((_storedOffset.dx.abs() + _storedOffset.dy.abs()) > _scrollLimit)) {
-          _storedOffset = Offset(_storedOffset.dx / 2, _storedOffset.dy / 2);
+          _storedOffset = Offset(_storedOffset.dx * 3 / 4, _storedOffset.dy * 3 / 4);
         }
-        animation?.removeListener(_listenAnimationLocation);
-        _animationController.reset();
-        _renderControllerLast = renderController.value;
-        _fullMapControllerLast = fullMapController.value;
-        final tween = Tween<Offset>(begin: const Offset(0, 0), end: _storedOffset);
-        animation = tween.animate(CurvedAnimation(parent: _animationController, curve: Curves.decelerate));
-        animation?.addListener(_listenAnimationLocation);
-        _animationController.forward();
+
+        if (!_animationLocked) {
+          _animateToOffset(_storedOffset);
+        }
       });
     } else {
       _internalTranslate(x, y);
     }
+  }
+
+  bool _animationLocked = false;
+  void _animateToOffset(Offset offset) {
+    _dxLast = 0;
+    _dyLast = 0;
+    final tween = Tween<Offset>(begin: const Offset(0, 0), end: offset);
+    animation = tween.animate(CurvedAnimation(parent: _animationController, curve: Curves.decelerate));
+    if (!_statusListenerAdded) {
+      _statusListenerAdded = true;
+      animation?.addListener(_listenAnimationLocation);
+    }
+    _animationController
+      ..reset()
+      ..forward();
   }
 
   ///
@@ -105,6 +132,7 @@ class MapControllerImpl implements MapController {
   MapControllerImpl({
     required this.mapProperties,
     required Size screenSize,
+    Point<int>? centerPoint,
   })  : renderController = ThrottledController(
           oxLength: mapProperties.tilesOxDisplayed * mapProperties.tileWidth,
           oyLength: mapProperties.tilesOyDisplayed * mapProperties.tileHeight,
@@ -118,6 +146,11 @@ class MapControllerImpl implements MapController {
         _screenSize = screenSize {
     _subCenterPoint = _mapEventController.stream.listen(_mapEventListener);
     _setZoom(mapProperties.maxZoomIn);
+    Future<void>.delayed(const Duration(milliseconds: 10)).then((value) {
+      if (centerPoint != null) {
+        jumpToPoint(centerPoint);
+      }
+    });
   }
 
   void setScreenSize(Size screenSize) {
@@ -159,7 +192,9 @@ class MapControllerImpl implements MapController {
     }
   }
 
+  @override
   void close() {
+    animation?.removeListener(_listenAnimationLocation);
     _subCenterPoint?.cancel();
     _mapEventController.close();
     _mapStateController.close();
@@ -167,18 +202,33 @@ class MapControllerImpl implements MapController {
 
   @override
   void centerToPoint(Point<int> point) {
+    final requiredOffset = _getPointCenterOffset(point);
+    final maxOffset = max(requiredOffset.dx.toInt().abs() * 4, requiredOffset.dy.toInt().abs() * 4);
+    _animationController.duration = Duration(milliseconds: max(maxOffset, 100));
+    _animateToOffset(requiredOffset);
+  }
+
+  Offset _getPointCenterOffset(Point<int> point) {
+    _animationLocked = true;
     _lastCenterPoint = point;
+    final dxMain = -1 * point.x * mapProperties.tileWidth;
+    final dxSub =
+        (_screenSize.width / 2) - mapProperties.offsetOx - (mapProperties.tileWidth / 2) - fullMapController.value.dx;
+    final dyMain = -1 * point.y * mapProperties.tileHeight - (mapProperties.tileHeight / 2);
+    final dySub = (_screenSize.height / 2) - mapProperties.offsetOy - fullMapController.value.dy;
     final requiredOffset = Offset(
-      -1 * point.x * mapProperties.tileWidth +
-          (_screenSize.width / 2) -
-          fullMapController.value.dx -
-          (mapProperties.offsetOx / 4),
-      -1 * point.y * mapProperties.tileHeight +
-          (_screenSize.height / 2) -
-          fullMapController.value.dy -
-          (mapProperties.offsetOy / 4),
+      dxMain + dxSub,
+      dyMain + dySub,
     );
-    translate(requiredOffset.dx, requiredOffset.dy);
+
+    return requiredOffset;
+  }
+
+  void jumpToPoint(Point<int> point) {
+    final requiredOffset = _getPointCenterOffset(point);
+    _dxLast = 0;
+    _dyLast = 0;
+    _internalTranslate(requiredOffset.dx, requiredOffset.dy);
   }
 
   @override
@@ -188,7 +238,7 @@ class MapControllerImpl implements MapController {
 }
 
 /// Value Notifier
-class ThrottledController with ChangeNotifier implements ValueListenable<Offset> {
+class ThrottledController extends ChangeNotifier implements ValueListenable<Offset> {
   final double oxLength;
   final double oyLength;
   final double tileWidth;
@@ -220,19 +270,19 @@ class ThrottledController with ChangeNotifier implements ValueListenable<Offset>
   Offset translateCircular(Offset offset) {
     var newValue = offset;
 
-    if (newValue.dx > (oxLength + tileWidthHalf - pixelOffset.dx)) {
+    while (newValue.dx > (oxLength + tileWidthHalf - pixelOffset.dx)) {
       newValue = newValue.translate(-oxLength, 0);
       rotationsOx--;
     }
-    if (newValue.dx < (-oxLength - tileWidthHalf - pixelOffset.dx)) {
+    while (newValue.dx < (-oxLength - tileWidthHalf - pixelOffset.dx)) {
       newValue = newValue.translate(oxLength, 0);
       rotationsOx++;
     }
-    if (newValue.dy > oyLength) {
+    while (newValue.dy > oyLength) {
       newValue = newValue.translate(0, -oyLength);
       rotationsOy--;
     }
-    if (newValue.dy < -oyLength) {
+    while (newValue.dy < -oyLength) {
       newValue = newValue.translate(0, oyLength);
       rotationsOy++;
     }
