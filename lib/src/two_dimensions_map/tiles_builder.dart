@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:game_board/src/two_dimensions_map/map_controller.dart';
-import 'package:game_board/src/two_dimensions_map/map_flow_delegate.dart';
-import 'package:game_board/src/two_dimensions_map/map_properties.dart';
+
+import 'map_controller.dart';
+import 'map_flow_delegate.dart';
+import 'map_properties.dart';
 
 class TilesBuilder {
   final MapProperties mapProperties;
@@ -76,7 +77,7 @@ class TilesBuilder {
     _prevValue = Offset(prevX, prevY);
 
     final offsetDx = (cameraPosition.dx + tileWidth - 1) / tileWidth;
-    var screenOffOx = cellsOx - offsetDx;
+    final screenOffOx = cellsOx - offsetDx;
     final offsetDy = (cameraPosition.dy + tileHeight - 1) / tileHeight;
     final screenOffOy = cellsOy - offsetDy;
 
@@ -158,7 +159,7 @@ class TilesBuilder {
 
   Iterable<Widget> buildTiles(Offset cameraOffset) sync* {
     for (var x = 0; x < mapProperties.tilesOxDisplayed; x++) {
-      for (var y = 0; y < mapProperties.tilesOyDisplayed; y++) {
+      for (var y = mapProperties.tilesOyDisplayed - 1; y >= 0; y--) {
         yield StreamBuilder(
           stream: pointController.stream.where((event) => event.x == x && event.y == y),
           builder: (context, state) {
@@ -175,29 +176,4 @@ class _PointWithInfo extends Point<int> {
   final String? info;
 
   _PointWithInfo(int x, int y, this.info) : super(x, y);
-}
-
-class _PointerPosition {
-  late int leftPos;
-  late int rightPos;
-
-  _PointerPosition(this.leftPos, int rightPos) {
-    this.rightPos = rightPos - 1;
-  }
-
-  int takeLeft() {
-    leftPos -= 1;
-    rightPos -= 1;
-
-    print('takeLeft: $leftPos');
-    return leftPos;
-  }
-
-  int takeRight() {
-    rightPos += 1;
-    leftPos += 1;
-
-    print('takeRight: $rightPos');
-    return rightPos;
-  }
 }

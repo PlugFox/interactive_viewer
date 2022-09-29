@@ -50,10 +50,10 @@ class _MapWrapperState extends State<MapWrapper> {
   final mapProperties = MapProperties(
     tileWidth: 60,
     tileHeight: 60,
-    tilesOx: 20,
-    tilesOy: 20,
-    tilesOxDisplayed: 13,
-    tilesOyDisplayed: 26,
+    tilesOx: 100,
+    tilesOy: 100,
+    tilesOxDisplayed: 18,
+    tilesOyDisplayed: 12,
   );
   late final MapControllerImpl _mapControllerImpl;
 
@@ -92,27 +92,29 @@ class _MapWrapperState extends State<MapWrapper> {
         clickCallback: (x, y) {
           print('point clicked: $x,$y');
         },
-        coordinateBuilder: (int x, int y, String? debug) => Container(
-          decoration: BoxDecoration(
-              color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
-              border: Border.all(
-                width: 3,
-                color: (x + y) % 2 == 1 ? Colors.black : Colors.white12,
-              )),
+        coordinateBuilder: (int x, int y, String? debug) => SizedBox(
           width: mapProperties.tileWidth,
           height: mapProperties.tileHeight,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '[$x;$y]',
-                style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
-              ),
-              Text(
-                debug ?? '-',
-                style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
-              )
-            ],
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+                color: (x + y) % 2 == 0 ? Colors.black : Colors.white12,
+                border: Border.all(
+                  width: 3,
+                  color: (x + y) % 2 == 1 ? Colors.black : Colors.white12,
+                )),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '[$x;$y]',
+                  style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
+                ),
+                Text(
+                  debug ?? '-',
+                  style: TextStyle(color: (x + y) % 2 == 0 ? Colors.white : Colors.black),
+                )
+              ],
+            ),
           ),
         ),
       );

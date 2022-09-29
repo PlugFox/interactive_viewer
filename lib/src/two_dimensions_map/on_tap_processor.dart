@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:game_board/src/two_dimensions_map/map_controller.dart';
-import 'package:game_board/src/two_dimensions_map/map_properties.dart';
+import 'map_controller.dart';
+import 'map_properties.dart';
 
 class OnTapProcessor {
   final MapProperties mapProperties;
@@ -35,16 +35,16 @@ class OnTapProcessor {
     var x = (gp.dx >= 0 ? gp.dx : (gp.dx - mapProperties.tileWidth)) ~/ mapProperties.tileWidth;
     var y = (gp.dy >= 0 ? gp.dy : (gp.dy - mapProperties.tileHeight)) ~/ mapProperties.tileHeight;
 
-    if (x < 0) {
+    while (x < 0) {
       x += mapProperties.tilesOx;
     }
-    if (y < 0) {
+    while (y < 0) {
       y += mapProperties.tilesOy;
     }
-    if (x >= mapProperties.tilesOx) {
+    while (x >= mapProperties.tilesOx) {
       x -= mapProperties.tilesOx;
     }
-    if (y >= mapProperties.tilesOy) {
+    while (y >= mapProperties.tilesOy) {
       y -= mapProperties.tilesOy;
     }
     return Point(x, y);

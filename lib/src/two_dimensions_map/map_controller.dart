@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:game_board/src/two_dimensions_map/debouncer.dart';
-import 'package:game_board/src/two_dimensions_map/map_controller_event.dart';
-import 'package:game_board/src/two_dimensions_map/map_controller_state.dart';
-import 'package:game_board/src/two_dimensions_map/map_properties.dart';
+
+import 'debouncer.dart';
+import 'map_controller_event.dart';
+import 'map_controller_state.dart';
+import 'map_properties.dart';
 
 typedef ClickCallback = void Function(int x, int y);
 
@@ -29,7 +28,6 @@ class MapControllerImpl implements MapController {
 
   Size _screenSize;
   Size get screenSize => _screenSize;
-  Point<int> _lastCenterPoint = const Point(0, 0);
 
   Stream<MapControllerState> get mapStateStream => _mapStateController.stream;
   final _mapStateController = StreamController<MapControllerState>.broadcast();
@@ -153,6 +151,7 @@ class MapControllerImpl implements MapController {
     });
   }
 
+  // ignore: use_setters_to_change_properties
   void setScreenSize(Size screenSize) {
     _screenSize = screenSize;
     //renderController.reset();
@@ -210,7 +209,6 @@ class MapControllerImpl implements MapController {
 
   Offset _getPointCenterOffset(Point<int> point) {
     _animationLocked = true;
-    _lastCenterPoint = point;
     final dxMain = -1 * point.x * mapProperties.tileWidth;
     final dxSub =
         (_screenSize.width / 2) - mapProperties.offsetOx - (mapProperties.tileWidth / 2) - fullMapController.value.dx;

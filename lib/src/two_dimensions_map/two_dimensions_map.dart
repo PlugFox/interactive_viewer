@@ -1,13 +1,14 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:game_board/src/two_dimensions_map/debouncer.dart';
-import 'package:game_board/src/two_dimensions_map/map_controller.dart';
-import 'package:game_board/src/two_dimensions_map/map_controller_event.dart';
-import 'package:game_board/src/two_dimensions_map/map_flow_delegate.dart';
-import 'package:game_board/src/two_dimensions_map/map_layout.dart';
-import 'package:game_board/src/two_dimensions_map/on_tap_processor.dart';
-import 'package:game_board/src/two_dimensions_map/scale_animator.dart';
+
+import 'debouncer.dart';
+import 'map_controller.dart';
+import 'map_controller_event.dart';
+import 'map_flow_delegate.dart';
+import 'map_layout.dart';
+import 'on_tap_processor.dart';
+import 'scale_animator.dart';
 
 class TwoDimensionsMap extends StatefulWidget {
   const TwoDimensionsMap({

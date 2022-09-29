@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:game_board/src/two_dimensions_map/map_controller_event.dart';
+
+import 'map_controller_event.dart';
 
 class MapControllerState {
   final double zoom;

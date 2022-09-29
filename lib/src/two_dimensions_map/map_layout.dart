@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:game_board/src/two_dimensions_map/map_controller.dart';
-import 'package:game_board/src/two_dimensions_map/map_flow_delegate.dart';
-import 'package:game_board/src/two_dimensions_map/map_properties.dart';
-import 'package:game_board/src/two_dimensions_map/tiles_builder.dart';
+
+import 'map_controller.dart';
+import 'map_flow_delegate.dart';
+import 'map_properties.dart';
+import 'tiles_builder.dart';
 
 class MapLayout extends StatefulWidget {
   const MapLayout({

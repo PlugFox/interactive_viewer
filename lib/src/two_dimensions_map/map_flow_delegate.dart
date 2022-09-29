@@ -2,7 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:game_board/src/two_dimensions_map/tiles_builder.dart';
+
+import 'tiles_builder.dart';
 
 typedef CoordinateBuilder = Widget Function(int x, int y, String? debug);
 
@@ -29,7 +30,7 @@ class MapFlowDelegate extends FlowDelegate {
     final pointsMapping = tilesBuilder.fullRebuildPosition();
 
     for (var x = 0; x < cellsOx; x++) {
-      for (var y = 0; y < cellsOy; y++) {
+      for (var y = cellsOy - 1; y >= 0; y--) {
         final point = pointsMapping[Point(x, y)];
 
         // Отрисуем клетку #i
